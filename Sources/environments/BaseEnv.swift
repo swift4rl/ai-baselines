@@ -212,7 +212,7 @@ extension BehaviorSpec {
      - n_agents: The number of agents that will have actions generated
     */
     func createEmptyAction(nAgents: Int) -> Tensor<Scalar> {
-        return Tensor<Scalar>.init(zeros: [nAgents, actionSize])
+        return Tensor<Scalar>(zeros: [nAgents, actionSize])
     }
     
 }
