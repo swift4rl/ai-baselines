@@ -12,11 +12,12 @@ task :dependencies do
   project.targets.each do |target|
     project.build_configurations.each { |config|
       config.build_settings["MACOSX_DEPLOYMENT_TARGET"] = 10.15
-      config.build_settings["SUPPORTED_PLATFORMS"] = 'macOS'
+      config.build_settings["SUPPORTED_PLATFORMS"] = 'macosx'
     }
 
     target.build_configurations.each do |config|
       config.build_settings["MACOSX_DEPLOYMENT_TARGET"] = 10.15
+      config.build_settings["SUPPORTED_PLATFORMS"] = 'macosx'
     end
   end
 
