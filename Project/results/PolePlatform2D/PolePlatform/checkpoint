@@ -1,0 +1,2 @@
+model_checkpoint_path: "PolePlatform-10349.ckpt"
+all_model_checkpoint_paths: "PolePlatform-10349.ckpt"
