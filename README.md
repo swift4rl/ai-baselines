@@ -7,7 +7,19 @@ for data scientist for so long eventhough it has some drawbacks such as being sl
 ## Requirements
 
 * Xcode 12
+* macOS 10.15.6 and above
 * Swift 5.3
 * Unity Hub
 * protoc-4.0.0-rc-2
 * grpc_csharp_plugin
+
+## Installation
+
+Install rake and xcodeproj as follows and then execute rake dependencies that will generate xcode project with deployment target
+macOS 10.15
+
+```bash
+[sudo] gem install rake
+[sudo] gem install xcodeproj
+rake dependencies
+```

@@ -5,7 +5,7 @@
 //  Created by Sercan Karaoglu on 20/09/2020.
 //
 
-import Foundation
+/**import Foundation
 
 /**
 Converts brain parameter and agent info proto to BehaviorSpec object.
@@ -28,3 +28,4 @@ func stepsFromProto<BehaviorSpecImpl: BehaviorSpec>(
 //TODO
     return nil;
 }
+**/
