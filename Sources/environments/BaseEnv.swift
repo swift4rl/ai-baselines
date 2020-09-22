@@ -135,9 +135,9 @@ class DecisionSteps{
      */
     static func empty<T>(spec: T) -> DecisionSteps where T: BehaviorSpec{
         var obs: [Tensor<Float32>] = []
-        for shape in spec._observationShapes {
+        for shape in spec.observationShapes {
             var s = [0]
-            s += shape
+            s += shape.map({Int($0)})
             obs.append(Tensor<Float32>(zeros: TensorShape(s)))
         }
         return DecisionSteps(
@@ -156,9 +156,9 @@ class DecisionSteps{
 protocol BehaviorSpec {
     associatedtype Scalar: TensorFlowNumeric
     
-    var _observationShapes: [[Int]] { get set }
-    var _actionType: ActionType { get set }
-    var _actionShape: [Int] { get set }
+    var observationShapes: [[Int32]] { get set }
+    var actionType: ActionType { get set }
+    var actionShape: [Int32] { get set }
     /// true if this Behavior uses discrete actions
     var isActionDiscrete: Bool { get }
     var isActionContinuous: Bool { get }
@@ -167,7 +167,7 @@ protocol BehaviorSpec {
        for each branch (only for discrete actions). Will return None in
        for continuous actions.
     */
-    var discreteActionBranches: [Int]? { get }
+    var discreteActionBranches: [Int32]? { get }
     
     /** the dimension of the action.
         - In the continuous case, will return the number of continuous actions.
@@ -177,10 +177,12 @@ protocol BehaviorSpec {
     var actionSize: Int { get }
     
     init()
-    init(observationShapes: [[Int]], actionShape: [Int])
+    init(observationShapes: [[Int32]], actionShape: [Int32])
     
     func createRandomAction(nAgents: Int) -> Tensor<Scalar>
     func createEmptyAction(nAgents: Int) -> Tensor<Scalar>
+    
+    static func create(observationShapes: [[Int32]], actionShape: [Int32]) -> Self
 }
 
 extension BehaviorSpec {
@@ -198,11 +200,11 @@ extension BehaviorSpec {
        - A Tuple of int in discrete action space where each int corresponds to
        the number of discrete actions available to the agent.
     */
-    init(observationShapes: [[Int]], actionType: ActionType, actionShape: [Int]) {
+    init(observationShapes: [[Int32]], actionType: ActionType, actionShape: [Int32]) {
         self.init()
-        _observationShapes = observationShapes
-        _actionType = actionType
-        _actionShape = actionShape
+        self.observationShapes = observationShapes
+        self.actionType = actionType
+        self.actionShape = actionShape
     }
     
     /**
@@ -219,11 +221,16 @@ extension BehaviorSpec {
 
 struct BehaviorSpecContinousAction: BehaviorSpec {
     
+    static func create(observationShapes: [[Int32]], actionShape: [Int32]) -> BehaviorSpecContinousAction {
+        return BehaviorSpecContinousAction(observationShapes: observationShapes, actionShape: actionShape)
+    }
+    
+    
     typealias Scalar = Float32
     
     init() {}
 
-    init(observationShapes: [[Int]], actionShape: [Int]) {
+    init(observationShapes: [[Int32]], actionShape: [Int32]) {
         self.init(observationShapes: observationShapes, actionType: ActionType.CONTINUOUS, actionShape: actionShape)
     }
     
@@ -231,17 +238,17 @@ struct BehaviorSpecContinousAction: BehaviorSpec {
     
     var isActionContinuous: Bool = true
     
-    var _observationShapes: [[Int]] = []
+    var observationShapes: [[Int32]] = []
     
-    var _actionType: ActionType = ActionType.CONTINUOUS
+    var actionType: ActionType = ActionType.CONTINUOUS
     
-    var _actionShape: [Int] = []
+    var actionShape: [Int32] = []
     
     var actionSize: Int {
-        return self._actionShape[0]
+        return Int(self.actionShape[0])
     }
     
-    var discreteActionBranches: [Int]? {
+    var discreteActionBranches: [Int32]? {
         return Optional.none
     }
     
@@ -257,12 +264,16 @@ struct BehaviorSpecContinousAction: BehaviorSpec {
 }
 
 struct BehaviorSpecDiscreteAction: BehaviorSpec {
+    
+    static func create(observationShapes: [[Int32]], actionShape: [Int32]) -> BehaviorSpecDiscreteAction {
+        return BehaviorSpecDiscreteAction(observationShapes: observationShapes, actionShape: actionShape)
+    }
 
     typealias Scalar = Int32
     
     init() {}
 
-    init(observationShapes: [[Int]], actionShape: [Int]) {
+    init(observationShapes: [[Int32]], actionShape: [Int32]) {
         self.init(observationShapes: observationShapes, actionType: ActionType.DISCRETE, actionShape: actionShape)
     }
     
@@ -270,18 +281,18 @@ struct BehaviorSpecDiscreteAction: BehaviorSpec {
     
     var isActionContinuous: Bool = false
     
-    var _observationShapes: [[Int]] = []
+    var observationShapes: [[Int32]] = []
     
-    var _actionType: ActionType = ActionType.DISCRETE
+    var actionType: ActionType = ActionType.DISCRETE
     
-    var _actionShape: [Int] = []
+    var actionShape: [Int32] = []
     
     var actionSize: Int {
-        return self._actionShape.count
+        return self.actionShape.count
     }
     
-    var discreteActionBranches: [Int]? {
-        return Optional.some( self._actionShape )
+    var discreteActionBranches: [Int32]? {
+        return Optional.some( self.actionShape )
     }
     
     /**
@@ -493,9 +504,9 @@ class TerminalSteps{
      */
     static func empty<T>(spec: T) -> TerminalSteps where T: BehaviorSpec{
         var obs: [Tensor<Float32>] = []
-        for shape in spec._observationShapes {
+        for shape in spec.observationShapes {
             var s = [0]
-            s += shape
+            s += shape.map({Int($0)})
             obs.append(
                 Tensor<Float32>(zeros: TensorShape(s))
             )

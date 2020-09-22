@@ -336,7 +336,7 @@ extension Env {
         for brainName in self.envSpecs.keys {
             if output.agentInfos.keys.contains(brainName) {
                 if let agentInfo = output.agentInfos[brainName], let envSpec = self.envSpecs[brainName] {
-                    self.envState[brainName] = stepsFromProto(agentInfoList: agentInfo.value, behaviorSpec: envSpec)
+                    self.envState[brainName] = try stepsFromProto(agentInfoList: agentInfo.value, behaviorSpec: envSpec)
                 }
             } else {
                 if let envSpec =  self.envSpecs[brainName] {
