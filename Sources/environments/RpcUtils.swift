@@ -79,20 +79,18 @@ throws -> (DecisionSteps, TerminalSteps)  {
     if behaviorSpec.isActionDiscrete {
         let nAgents = decisionAgentInfoList.count
         if let aSize = behaviorSpec.discreteActionBranches?.reduce(0, +) {
-            let maskMatrix = Tensor<Bool>(repeating: true, shape: [nAgents, Int(aSize)])
+            var maskMatrix = Tensor<Bool>(repeating: true, shape: [nAgents, Int(aSize)])
             
             for (agentIndex, agentInfo) in decisionAgentInfoList.enumerated() {
                 if agentInfo.actionMask.count == aSize {
-                    maskMatrix[agentIndex] =
-                    mask_matrix[agentIndex, :] = [
-                      false if agent_info.action_mask[k] else true
-                                for k in range(a_size)
-                            ]
+                    maskMatrix[agentIndex] = Tensor<Bool>(agentInfo.actionMask).elementsLogicalNot()
                 }
             }
-//            action_mask = (1 - mask_matrix).astype(np.bool)
-//            indices = _generate_split_indices(behavior_spec.discrete_action_branches)
-//            action_mask = np.split(action_mask, indices, axis=1)
+            var actionMask = maskMatrix.elementsLogicalNot()
+            if let dims = behaviorSpec.discreteActionBranches {
+                let indices = generateSplitIndices(dims: dims)
+                // TODO actionMask = np.split(action_mask, indices, axis=1)
+            }
         }
     }
     
@@ -108,8 +106,9 @@ func processVisualObservation(
     shape: [Int32]
     agentInfoList: [CommunicatorObjects_AgentInfoProto]
 ) -> Tensor<Float32> {
-    if len(agent_info_list) == 0:
-        return np.zeros((0, shape[0], shape[1], shape[2]), dtype=np.float32)
+    if agentInfoList.count == 0 {
+        return Tensor<Float32>(repeating: 0, shape: TensorShape(shape.map({Int($0)})))
+    }
 
     batched_visual = [
         observation_to_np_array(agent_obs.observations[obs_index], shape)
@@ -122,18 +121,24 @@ func processVectorObservation(
     obsIndex: Int,
     shape: [Int32],
     agentInfoList: [ CommunicatorObjects_AgentInfoProto ]
-) -> Tensor<Float32> {
-    if len(agent_info_list) == 0:
-        return np.zeros((0, shape[0]), dtype=np.float32)
-    np_obs = np.array(
-        [
-            agent_obs.observations[obs_index].float_data.data
-            for agent_obs in agent_info_list
-        ],
-        dtype=np.float32,
-    )
-    _raise_on_nan_and_inf(np_obs, "observations")
-    return np_obs
+) throws -> Tensor<Float> {
+    if agentInfoList.count == 0 {
+        return Tensor<Float32>(repeating:0, shape: TensorShape(Int(shape[0])))
+    }
+    let obs = Tensor<Float>(stacking: agentInfoList.map({Tensor<Float>($0.observations[obsIndex].floatData.data)}) )
+    try raiseOnNanAndInf(data: obs.scalars, source: "observations")
+    return obs
+}
+
+func generateSplitIndices(dims: [Int32]) -> [Int32]{
+    if dims.count <= 1 {
+        return []
+    }
+    var result = [dims[0]]
+    for i in 0...(dims.count - 2) {
+        result += [dims[i + 1] + result[i]]
+    }
+    return result
 }
 /**
  Check for NaNs or Infinite values in the observation or reward data.
