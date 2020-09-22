@@ -1,0 +1,29 @@
+{
+    "PolePlatform": {
+        "checkpoints": [
+            {
+                "steps": 499882,
+                "file_path": "results\\CartPole3Dv2\\PolePlatform\\PolePlatform-499882.nn",
+                "reward": 30.485719408307755,
+                "creation_time": 1600767855.402546
+            },
+            {
+                "steps": 500117,
+                "file_path": "results\\CartPole3Dv2\\PolePlatform\\PolePlatform-500117.nn",
+                "reward": 29.47500514984131,
+                "creation_time": 1600767856.734851
+            }
+        ],
+        "final_checkpoint": {
+            "steps": 500117,
+            "file_path": "results\\CartPole3Dv2\\PolePlatform.nn",
+            "reward": 29.47500514984131,
+            "creation_time": 1600767856.734851
+        }
+    },
+    "metadata": {
+        "stats_format_version": "0.1.0",
+        "mlagents_version": "0.19.0",
+        "tensorflow_version": "2.3.0"
+    }
+}
