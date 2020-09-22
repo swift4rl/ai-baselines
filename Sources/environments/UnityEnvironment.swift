@@ -175,6 +175,7 @@ extension Env {
         sideChannels: [SideChannel]? = Optional.none,
         logFolder: String? = Optional.none
         ) throws {
+        try self.init(fileName: <#String?#>, basePort: <#Int?#>)
         self.sideChannelManager = try SideChannelManager(sideChannels: sideChannels)
         let port: Int = fileName.map({_ in Defaults.BASE_ENVIRONMENT_PORT}) ?? Defaults.DEFAULT_EDITOR_PORT
         self.communicator = RpcCommunicator(workerId: workerId, port: port)
