@@ -5,7 +5,7 @@
         {
             "label": "swift-build",
             "type": "shell",
-            "command": "swift build --enable-test-discovery"
+            "command": "swift build"
         },
     ]
 }
