@@ -101,6 +101,7 @@ throws -> (DecisionSteps, TerminalSteps)  {
         TerminalSteps(terminalObsList, terminalRewards, maxStep, terminalAgentId),
     )
 }
+
 func processVisualObservation(
     obsIndex: Int,
     shape: [Int32]
