@@ -1,4 +1,10 @@
-FROM ubuntu:20.04
+# See here for image contents: https://github.com/microsoft/vscode-dev-containers/tree/v0.140.1/containers/ubuntu/.devcontainer/base.Dockerfile
+
+# [Choice] Ubuntu version: bionic, focal
+ARG VARIANT="focal"
+FROM mcr.microsoft.com/vscode/devcontainers/base:0-${VARIANT}
+
+# section to install additional OS packages.
 
 RUN apt-get -q update
 RUN apt-get -q install -y curl

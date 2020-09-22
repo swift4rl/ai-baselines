@@ -1,0 +1,11 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        // compile your SPM project
+        {
+            "label": "swift-build",
+            "type": "shell",
+            "command": "swift build --enable-test-discovery"
+        },
+    ]
+}
