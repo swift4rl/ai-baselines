@@ -41,27 +41,12 @@ class UnityToExternalServicerImplementation : CommunicatorObjects_UnityToExterna
     }
     
     func exchange(request: CommunicatorObjects_UnityMessageProto, context: StatusOnlyCallContext) -> EventLoopFuture<CommunicatorObjects_UnityMessageProto> {
-        print("========?>>>>>")
-     var rlIn = CommunicatorObjects_UnityRLInputProto()
-         rlIn.command = CommunicatorObjects_CommandProto.quit
-         rlIn.sideChannel = request.unityOutput.rlOutput.sideChannel
-         var value = CommunicatorObjects_UnityInputProto()
-         value.rlInput = rlIn
-         var ret = CommunicatorObjects_UnityMessageProto()
-         ret.unityInput = value
-        print(value)
-         return context.eventLoop.makeSucceededFuture(ret)
-    /*EventLoopFuture<CommunicatorObjects_UnityMessageProto> {
-        print("exchange -->>>")
-        print(request.unityInput)
+       EventLoopFuture<CommunicatorObjects_UnityMessageProto> {
         let p = context.eventLoop.makePromise(of: CommunicatorObjects_UnityMessageProto.self)
         q.append((request,p))
         return p.futureResult
-         }
-         */
     }
-    
-    
+    }
 }
 
 public class RpcCommunicator: Communicator {

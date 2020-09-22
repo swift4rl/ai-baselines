@@ -11,14 +11,13 @@ import Foundation
 
 class UnityToGymWrapper {
 
-    //var unityEnv: BaseEnv?
+    var unityEnv: BaseEnv?
     var uint8Visual: Bool = false
     var flattenBranched: Bool = false
     var allowMultipleObs: Bool = false
     var previousDecisionStep: DecisionSteps
     var terminalStep: TerminalSteps
-    
-    var actionSpace:
+    var steps: (DecisionSteps, TerminalSteps)
     
     //Hidden flag used by Atari environments to determine if the game is over
     var gameOver: Bool
@@ -26,6 +25,7 @@ class UnityToGymWrapper {
     init<T: BaseEnv>(unityEnv: T, uint8Visual: Bool, flattenBranched: Bool, allowMultipleObs: Bool) throws {
         self.gameOver = false
         self.allowMultipleObs = allowMultipleObs
+        self.unityEnv = unityEnv
         
         let behaviourSpec = unityEnv.behaviorSpecs()
         // Check brain configuration
@@ -36,12 +36,12 @@ class UnityToGymWrapper {
             """)
         }
         
-        let name = Array(behaviourSpec.keys)[0]
+        let name: String = Array(behaviourSpec.keys)[0]
         let groupSpec = behaviourSpec[name]
 
         // Check for number of agents in scene.
-        unityEnv.reset()
-        let steps = unityEnv.getSteps(behaviorName: name)
+        self.unityEnv!.reset()
+        self.steps = self.unityEnv!.getSteps(behaviorName: name)
             
 
         do { try self._check_agents(nAgents:steps.0.agentIdToIndex.count)} //TODO: yesh: ugly unwrapping. Fix it
@@ -94,10 +94,20 @@ class UnityToGymWrapper {
     }
     
     
-    func reset(){}
+    func reset() -> Void {
+        self.unityEnv!.reset()
+        self.steps = self.unityEnv!.getSteps(behaviorName: name)
+        { try self._check_agents(nAgents:steps.0.agentIdToIndex.count)}
+        self.gameOver = false
+
+        res = self.singleStep(steps.0)
+        return res[0]
+        
+
+    }
     func step(){}
     func singleStep(){}
-    func close()
+    func close() {}
     
     
     func _check_agents(nAgents: Int) throws {
