@@ -7,8 +7,8 @@
 
 /**import Foundation
 
-/**
-Converts brain parameter and agent info proto to BehaviorSpec object.
+
+/*Converts brain parameter and agent info proto to BehaviorSpec object.
  - Parameters:
   - brainParamProto: protobuf object.
   - agentInfo: protobuf object.
@@ -28,4 +28,5 @@ func stepsFromProto<BehaviorSpecImpl: BehaviorSpec>(
 //TODO
     return nil;
 }
+
 **/

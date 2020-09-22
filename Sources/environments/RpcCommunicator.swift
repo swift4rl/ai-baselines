@@ -35,15 +35,32 @@ class UnityToExternalServicerImplementation : CommunicatorObjects_UnityToExterna
         return p.futureResult
     }
     
-    func initialize(request: CommunicatorObjects_UnityMessageProto, context: StatusOnlyCallContext) -> EventLoopFuture<CommunicatorObjects_UnityMessageProto> {
+    func initialize(request: CommunicatorObjects_UnityMessageProto, context: StatusOnlyCallContext) ->
+    EventLoopFuture<CommunicatorObjects_UnityMessageProto> {
         return handle(context, request)
     }
     
     func exchange(request: CommunicatorObjects_UnityMessageProto, context: StatusOnlyCallContext) -> EventLoopFuture<CommunicatorObjects_UnityMessageProto> {
+        print("========?>>>>>")
+     var rlIn = CommunicatorObjects_UnityRLInputProto()
+         rlIn.command = CommunicatorObjects_CommandProto.quit
+         rlIn.sideChannel = request.unityOutput.rlOutput.sideChannel
+         var value = CommunicatorObjects_UnityInputProto()
+         value.rlInput = rlIn
+         var ret = CommunicatorObjects_UnityMessageProto()
+         ret.unityInput = value
+        print(value)
+         return context.eventLoop.makeSucceededFuture(ret)
+    /*EventLoopFuture<CommunicatorObjects_UnityMessageProto> {
+        print("exchange -->>>")
+        print(request.unityInput)
         let p = context.eventLoop.makePromise(of: CommunicatorObjects_UnityMessageProto.self)
         q.append((request,p))
         return p.futureResult
+         }
+         */
     }
+    
     
 }
 
@@ -91,6 +108,7 @@ public class RpcCommunicator: Communicator {
     }
     
     func initialize(inputs: CommunicatorObjects_UnityInputProto) -> Optional<CommunicatorObjects_UnityOutputProto> {
+        print("rpc --->> initalize --->>")
         var message = CommunicatorObjects_UnityMessageProto()
         message.header.status=200
         message.unityInput = inputs
@@ -100,6 +118,7 @@ public class RpcCommunicator: Communicator {
     
     func exchange(inputs: CommunicatorObjects_UnityInputProto) -> Optional<CommunicatorObjects_UnityOutputProto> {
         var message = CommunicatorObjects_UnityMessageProto()
+        print("rpc --->> exchange -->>")
         message.header.status = 200
         message.unityInput = inputs
         let m = self.provider.next()
