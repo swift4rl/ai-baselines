@@ -83,7 +83,7 @@ throws -> (DecisionSteps, TerminalSteps)  {
             
             for (agentIndex, agentInfo) in decisionAgentInfoList.enumerated() {
                 if agentInfo.actionMask.count == aSize {
-                    maskMatrix
+                    maskMatrix[agentIndex] =
                     mask_matrix[agentIndex, :] = [
                       false if agent_info.action_mask[k] else true
                                 for k in range(a_size)
