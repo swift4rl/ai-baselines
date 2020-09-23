@@ -11,4 +11,5 @@ enum UnityException: Error {
     case UnityEnvironmentException(reason: String)
     case UnityCommunicatorStoppedException(reason: String)
     case UnityActionException(reason: String)
+    case UnityObservationException(reason: String)
 }

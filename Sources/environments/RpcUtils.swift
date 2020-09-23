@@ -9,6 +9,7 @@ import Foundation
 import TensorFlow
 
 typealias SpaceTypeProto = CommunicatorObjects_SpaceTypeProto
+typealias CompressionTypeProto = CommunicatorObjects_CompressionTypeProto
 /**
 Converts brain parameter and agent info proto to BehaviorSpec object.
  - Parameters:
@@ -41,24 +42,25 @@ throws -> (DecisionSteps, TerminalSteps)  {
     for (obsIndex, obsShape) in behaviorSpec.observationShapes.enumerated() {
         let isVisual = obsShape.count == 3
         if isVisual{
-            decisionObsList.append(
-                processVisualObservation(
-                    obsIndex: obsIndex, shape: obsShape, agentInfoList: decisionAgentInfoList
-                )
-            )
-            terminalObsList.append(
-                processVisualObservation(
-                    obsIndex: obsIndex, shape: obsShape, agentInfoList: terminalAgentInfoList
-                )
-            )
+            throw UnityException.UnityObservationException(reason: "Visual representation has not yet been supported!")
+//            decisionObsList.append(
+//                try processVisualObservation(
+//                    obsIndex: obsIndex, shape: obsShape, agentInfoList: decisionAgentInfoList
+//                )
+//            )
+//            terminalObsList.append(
+//                try processVisualObservation(
+//                    obsIndex: obsIndex, shape: obsShape, agentInfoList: terminalAgentInfoList
+//                )
+//            )
         } else {
             decisionObsList.append(
-                processVectorObservation(
+                try processVectorObservation(
                     obsIndex: obsIndex, shape: obsShape, agentInfoList: decisionAgentInfoList
                 )
             )
             terminalObsList.append(
-                processVectorObservation(
+                try processVectorObservation(
                     obsIndex: obsIndex, shape: obsShape, agentInfoList: terminalAgentInfoList
                 )
             )
@@ -76,6 +78,7 @@ throws -> (DecisionSteps, TerminalSteps)  {
     let decisionAgentId = decisionAgentInfoList.map({$0.id})
     let terminalAgentId = terminalAgentInfoList.map({$0.id})
     
+    var actionMask: Optional<[Tensor<Bool>]> = Optional.none
     if behaviorSpec.isActionDiscrete {
         let nAgents = decisionAgentInfoList.count
         if let aSize = behaviorSpec.discreteActionBranches?.reduce(0, +) {
@@ -90,6 +93,7 @@ throws -> (DecisionSteps, TerminalSteps)  {
             if let dims = behaviorSpec.discreteActionBranches {
                 let indices = generateSplitIndices(dims: dims)
                 // TODO actionMask = np.split(action_mask, indices, axis=1)
+                //actionMask.spli
             }
         }
     }
@@ -102,21 +106,16 @@ throws -> (DecisionSteps, TerminalSteps)  {
     )
 }
 
-func processVisualObservation(
-    obsIndex: Int,
-    shape: [Int32]
-    agentInfoList: [CommunicatorObjects_AgentInfoProto]
-) -> Tensor<Float32> {
-    if agentInfoList.count == 0 {
-        return Tensor<Float32>(repeating: 0, shape: TensorShape(shape.map({Int($0)})))
-    }
-
-    batched_visual = [
-        observation_to_np_array(agent_obs.observations[obs_index], shape)
-        for agent_obs in agent_info_list
-    ]
-    return np.array(batched_visual, dtype=np.float32)
-}
+//func processVisualObservation(
+//    obsIndex: Int,
+//    shape: [Int32],
+//    agentInfoList: [CommunicatorObjects_AgentInfoProto]
+//) throws -> Tensor<Float32> {
+//    if agentInfoList.count == 0 {
+//        return Tensor<Float32>(repeating: 0, shape: TensorShape(shape.map({Int($0)})))
+//    }
+//    return try Tensor(agentInfoList.map({try observationToNpArray(obs: $0.observations[obsIndex], expectedShape: shape)}))
+//}
 
 func processVectorObservation(
     obsIndex: Int,
@@ -141,6 +140,69 @@ func generateSplitIndices(dims: [Int32]) -> [Int32]{
     }
     return result
 }
+
+///**
+//Converts observation proto into numpy array of the appropriate size.
+//  - Parameters:
+//    - obs: observation proto to be converted
+//    - expectedShape: optional shape information, used for sanity checks.
+//
+//  - Returns:
+//    processed numpy array of observation from environment
+// */
+//func observationToNpArray(
+//    obs:  CommunicatorObjects_ObservationProto, expectedShape: [Int32]? = Optional.none
+//) throws -> Tensor<Float32> {
+//    let obsShape = TensorShape(obs.shape.map({Int($0)}))
+//    if let expectedShape = expectedShape {
+//        if obsShape != TensorShape(expectedShape.map({Int($0)})) {
+//            throw UnityException.UnityObservationException(
+//                reason:"Observation did not have the expected shape - got \(obs.shape) but expected \(expectedShape)"
+//            )
+//        }
+//    }
+//    let grayScale = obs.shape[2] == 1
+//    if obs.compressionType == CompressionTypeProto.none {
+//        var img = Tensor<Float32>(obs.floatData.data)
+//        img = img.reshaped(to: TensorShape(obs.shape.map({Int($0)})))
+//        return img
+//    } else {
+//        var img = processPixels(obs.compressedData, grayScale)
+//        if obsShape != TensorShape(img.shape.map({Int($0)})) {
+//            throw UnityException.UnityObservationException(reason: """
+//                Decompressed observation did not have the expected shape
+//                decompressed had \(img.shape) but expected \(obs.shape)
+//                """
+//            )
+//        }
+//        return img
+//    }
+//}
+
+///**
+//Converts byte array observation image into numpy array, re-sizes it,
+//and optionally converts it to grey scale
+//- Parameters:
+// - gray_scale: Whether to convert the image to grayscale.
+// - image_bytes: input byte array corresponding to image
+//- Returns:
+// - processed numpy array of observation from environment
+//*/
+//func processPixels(imageBytes: Data, grayScale: Bool) -> Tensor<Float32>{
+//    imageBytes.withUnsafeBytes { (floatPtr: UnsafePointer<Float>) in
+//        floatPtr[index] / 255.0
+//    }
+//    CGImage
+//    imageBytes.withUnsafeMutableBytes({ mtb in })
+//    let ctx = CGContext.from(pixels: imageBytes, width: 128)
+//    ctx.
+//    s = np.array(image, dtype=np.float32) / 255.0
+//    if gray_scale:
+//        s = np.mean(s, axis=2)
+//        s = np.reshape(s, [s.shape[0], s.shape[1], 1])
+//    return s
+//}
+
 /**
  Check for NaNs or Infinite values in the observation or reward data.
  If there's a NaN in the observations, the np.mean() result will be NaN
