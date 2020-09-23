@@ -60,8 +60,8 @@ class IncomingMessage {
         return ret
     }
     
-    func getRawBytes() -> [UInt8]? {
-        return self.buffer.getBytes(at: 0, length: self.buffer.capacity)
+    func getRawBytes() -> [UInt8] {
+        return self.buffer.getBytes(at: 0, length: self.buffer.capacity) ?? []
     }
     
     func atEndOfBuffer() -> Bool{

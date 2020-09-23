@@ -1,0 +1,24 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Run",
+            "program": "./.build/debug/Run",
+            "preLaunchTask": "swift-build",
+            "initCommands": ["set set target.disable-aslr false"]
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug tests on Linux",
+            "program": "./.build/debug/ai-baselinesPackageTests.xctest",
+            "preLaunchTask": "swift-build-tests",
+            "initCommands": ["set set target.disable-aslr false"]
+        }
+    ]
+}
