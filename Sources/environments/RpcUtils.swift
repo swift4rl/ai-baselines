@@ -89,21 +89,18 @@ throws -> (DecisionSteps, TerminalSteps)  {
                     maskMatrix[agentIndex] = Tensor<Bool>(agentInfo.actionMask).elementsLogicalNot()
                 }
             }
-            var actionMask = maskMatrix.elementsLogicalNot()
             if let dims = behaviorSpec.discreteActionBranches {
-                let indices = generateSplitIndices(dims: dims.map({Int32($0)}))
-                // TODO actionMask = np.split(action_mask, indices, axis=1)
-                //actionMask.spli
+                actionMask = Optional.some(maskMatrix.elementsLogicalNot().split(sizes: dims.map({Int($0)}), alongAxis: 1))
             }
         }
     }
-    return (DecisionSteps.empty(spec: behaviorSpec), TerminalSteps.empty(spec: behaviorSpec))
-//    return (
-//        DecisionSteps(
-//            decisionObsList, decisionRewards, decisionAgentId, actionMask
-//        ),
-//        TerminalSteps(terminalObsList, terminalRewards, maxStep, terminalAgentId),
-//    )
+    //return (DecisionSteps.empty(spec: behaviorSpec), TerminalSteps.empty(spec: behaviorSpec))
+    return (
+        DecisionSteps(
+            obs: decisionObsList, reward: Tensor(decisionRewards), agentId: decisionAgentId, actionMask: actionMask
+        ),
+        TerminalSteps(obs: terminalObsList, reward: Tensor(terminalRewards), interrupted: Tensor(maxStep), agentId: terminalAgentId)
+    )
 }
 
 //func processVisualObservation(
@@ -128,17 +125,6 @@ func processVectorObservation(
     let obs = Tensor<Float>(stacking: agentInfoList.map({Tensor<Float>($0.observations[obsIndex].floatData.data)}) )
     try raiseOnNanAndInf(data: obs.scalars, source: "observations")
     return obs
-}
-
-func generateSplitIndices(dims: [Int32]) -> [Int32]{
-    if dims.count <= 1 {
-        return []
-    }
-    var result = [dims[0]]
-    for i in 0...(dims.count - 2) {
-        result += [dims[i + 1] + result[i]]
-    }
-    return result
 }
 
 ///**

@@ -109,7 +109,7 @@ final class StepTests: XCTestCase {
     
     func testActionGenerator(){
         let actionLen = 30
-        let specs = BehaviorSpecContinousAction(observationShapes: [[5]], actionShape: [actionLen])
+        let specs = BehaviorSpecContinousAction(observationShapes: [[5]], actionShape: [Int32(actionLen)])
         let zeroAction = specs.createEmptyAction(nAgents: 4)
         XCTAssertEqual(zeroAction, Tensor<Float32>(repeating: 0.0, shape: TensorShape(4, actionLen)))
         let randomAction = specs.createRandomAction(nAgents: 4)
@@ -118,7 +118,7 @@ final class StepTests: XCTestCase {
         XCTAssertTrue(randomAction.min().scalar! >= -1)
         XCTAssertTrue(randomAction.max().scalar! <= 1)
         
-        let _actionShape = [10, 20, 30]
+        let _actionShape: [Int32] = [10, 20, 30]
         let _specs = BehaviorSpecDiscreteAction(observationShapes: [[5]], actionShape: _actionShape)
         let _zeroAction = _specs.createEmptyAction(nAgents: 4)
         XCTAssertEqual(_zeroAction, Tensor<Int32>(repeating: 0, shape: TensorShape(4, _actionShape.count)))
