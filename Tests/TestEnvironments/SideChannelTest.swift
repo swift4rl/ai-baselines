@@ -143,4 +143,31 @@ class SideChannelTest: XCTestCase {
         data = try SideChannelManager(sideChannels: [sender]).generateSideChannelMessages()
         XCTAssertThrowsError(try SideChannelManager(sideChannels: [sender]).processSideChannelMessage(message: data))
     }
+
+    func testEnvironmentParameters() throws {
+        let sender = EnvironemntParametersChannel()
+        let receiver = RawBytesChannel(channelId: sender.channelId)
+
+        try sender.setFloatParameter(key: "param-1", value: 0.1)
+        var data = try SideChannelManager(sideChannels: [sender]).generateSideChannelMessages()
+        try SideChannelManager(sideChannels: [receiver]).processSideChannelMessage(message: data)
+        let message = IncomingMessage(buffer: ByteBuffer(bytes: receiver.getAndClearReceivedMessages()[0]))
+        let key = message.readString()
+        let dtype = message.readInt32()
+        let value = message.readFloat32()
+        XCTAssertEqual(key, "param-1")
+        XCTAssertEqual(dtype, EnvironemntParametersChannel.FLOAT)
+        XCTAssertEqual(value, 0.1, accuracy: 1e-8)
+
+        try sender.setFloatParameter(key: "param-1", value: 0.1)
+        try sender.setFloatParameter(key: "param-2", value: 0.1)
+        try sender.setFloatParameter(key: "param-3", value: 0.1)
+        data = try SideChannelManager(sideChannels: [sender]).generateSideChannelMessages()
+        try SideChannelManager(sideChannels: [receiver]).processSideChannelMessage(message: data)
+        XCTAssertEqual(receiver.getAndClearReceivedMessages().count, 3)
+
+        try sender.setFloatParameter(key: "param-1", value: 0.1)
+        data = try SideChannelManager(sideChannels: [sender]).generateSideChannelMessages()
+        XCTAssertThrowsError(try SideChannelManager(sideChannels: [sender]).processSideChannelMessage(message: data))
+    }
 }
