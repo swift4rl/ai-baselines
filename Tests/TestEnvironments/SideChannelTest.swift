@@ -170,4 +170,21 @@ class SideChannelTest: XCTestCase {
         data = try SideChannelManager(sideChannels: [sender]).generateSideChannelMessages()
         XCTAssertThrowsError(try SideChannelManager(sideChannels: [sender]).processSideChannelMessage(message: data))
     }
+
+    func testStatsChannel() throws {
+        let receiver = StatsSideChannel()
+        let message = OutgoingMessage()
+        try message.writeString("stats-1")
+        message.writeFloat32(42.0)
+        message.writeInt32(1)
+
+        try receiver.onMessageReceived(msg: IncomingMessage(buffer: message.buffer))
+
+        let stats = receiver.getAndResetStats()
+
+        XCTAssertEqual(stats.count, 1)
+        let (val, method) = stats["stats-1"]![0]
+        XCTAssertEqual(val, 42.0, accuracy: 1e-8)
+        XCTAssertEqual(method, StatsSideChannel.MOST_RECENT)
+    }
 }
