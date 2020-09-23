@@ -7,5 +7,4 @@
 import Foundation
 import environments
 
-let rpc = RpcCommunicator(host: "localhost", port: 5004)
-rpc.test()
+let rpc = RpcCommunicator(port: 5004)

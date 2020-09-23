@@ -17,10 +17,10 @@ Converts brain parameter and agent info proto to BehaviorSpec object.
   - agentInfo: protobuf object.
  - Returns: BehaviorSpec object.
  */
-func behaviorSpecFromProto<T>(
+func behaviorSpecFromProto<T: BehaviorSpec>(
     brainParamProto: CommunicatorObjects_BrainParametersProto,
     agentInfo: CommunicatorObjects_AgentInfoProto
-) -> T where T: BehaviorSpec{
+) -> T{
     let observationShape = agentInfo.observations.map({$0.shape})
     
     if SpaceTypeProto.discrete == brainParamProto.vectorActionSpaceType {
@@ -91,19 +91,19 @@ throws -> (DecisionSteps, TerminalSteps)  {
             }
             var actionMask = maskMatrix.elementsLogicalNot()
             if let dims = behaviorSpec.discreteActionBranches {
-                let indices = generateSplitIndices(dims: dims)
+                let indices = generateSplitIndices(dims: dims.map({Int32($0)}))
                 // TODO actionMask = np.split(action_mask, indices, axis=1)
                 //actionMask.spli
             }
         }
     }
-    
-    return (
-        DecisionSteps(
-            decisionObsList, decisionRewards, decisionAgentId, actionMask
-        ),
-        TerminalSteps(terminalObsList, terminalRewards, maxStep, terminalAgentId),
-    )
+    return (DecisionSteps.empty(spec: behaviorSpec), TerminalSteps.empty(spec: behaviorSpec))
+//    return (
+//        DecisionSteps(
+//            decisionObsList, decisionRewards, decisionAgentId, actionMask
+//        ),
+//        TerminalSteps(terminalObsList, terminalRewards, maxStep, terminalAgentId),
+//    )
 }
 
 //func processVisualObservation(
