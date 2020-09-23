@@ -19,5 +19,7 @@ RUN apt-get -q install -y libblocksruntime-dev
 RUN apt-get -q install -y libxml2
 RUN apt-get -q install -y git
 RUN apt-get -q install -y zlib1g-dev
+RUN apt-get -q install -y python3
+RUN apt-get -q install -y python3-lldb
 
 RUN swift --version
