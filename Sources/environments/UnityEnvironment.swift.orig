@@ -5,6 +5,7 @@
 //  Created by Sercan Karaoglu on 19/04/2020.
 //
 
+/**import Foundation
 import TensorFlow
 import GRPC
 import NIO
@@ -173,7 +174,11 @@ extension Env {
         sideChannels: [SideChannel]? = Optional.none,
         logFolder: String? = Optional.none
         ) throws {
+<<<<<<< HEAD
         try self.init(basePort: basePort)
+=======
+        try self.init(fileName: <#String?#>, basePort: <#Int?#>)
+>>>>>>> master
         self.sideChannelManager = try SideChannelManager(sideChannels: sideChannels)
         let port: Int = Defaults.DEFAULT_EDITOR_PORT
         self.communicator = RpcCommunicator(workerId: workerId, port: port)

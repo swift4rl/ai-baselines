@@ -5,8 +5,12 @@
 //  Created by Sercan Karaoglu on 20/09/2020.
 //
 
+<<<<<<< HEAD
 import Foundation
 import TensorFlow
+=======
+/**import Foundation
+>>>>>>> master
 
 typealias SpaceTypeProto = CommunicatorObjects_SpaceTypeProto
 typealias CompressionTypeProto = CommunicatorObjects_CompressionTypeProto
@@ -206,3 +210,4 @@ func raiseOnNanAndInf(data: [Float32], source: String) throws -> Void {
         throw UnityException.UnityEnvironmentException(reason: "The \(source) provided had Infinite values.")
     }
 }
+**/
