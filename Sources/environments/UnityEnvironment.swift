@@ -376,4 +376,3 @@ class UnityDiscreteEnvironment: Env {
         self.props = Props<BehaviorSpecDiscreteAction>(communicator: co, client: cl, sideChannelManager: scm)
     }
 }
-**/
