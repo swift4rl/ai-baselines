@@ -35,7 +35,7 @@ class SideChannelManager {
             
             if self.sideChannelsDict.keys.contains(channelId){
                 let incomingMessage = IncomingMessage(buffer: messageData)
-                self.sideChannelsDict[channelId]?.onMessageReceived(msg: incomingMessage)
+                try self.sideChannelsDict[channelId]!.onMessageReceived(msg: incomingMessage)
             } else {
                 logger.warning("Unknown side channel data received. Channel type: \(channelId).")
             }

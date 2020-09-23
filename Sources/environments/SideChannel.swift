@@ -20,5 +20,5 @@ class SideChannel {
         self.messageQueue.append(msg.buffer)
     }
     
-    func onMessageReceived(msg: IncomingMessage) -> Void {}
+    func onMessageReceived(msg: IncomingMessage) throws -> Void {}
 }

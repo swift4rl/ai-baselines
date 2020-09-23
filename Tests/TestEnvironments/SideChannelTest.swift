@@ -1,4 +1,5 @@
 import XCTest
+import NIO
 @testable import environments
 
 class IntChannel: SideChannel {
@@ -30,6 +31,20 @@ class SideChannelTest: XCTestCase {
         try SideChannelManager(sideChannels: [receiver]).processSideChannelMessage(message: data)
         XCTAssertEqual(receiver.intList[0], 5)
         XCTAssertEqual(receiver.intList[1], 6)
+    }
+
+    func testRawBytes() throws {
+        let guid = UUID()
+        let sender = RawBytesChannel(channelId: guid)
+        let receiver = RawBytesChannel(channelId: guid)
+        try sender.setRawData(data: ByteBuffer(data: "foo".data(using: .utf8)!))
+        try sender.setRawData(data: ByteBuffer(data: "bar".data(using: .utf8)!))
+        let data = try SideChannelManager(sideChannels: [sender]).generateSideChannelMessages()
+        try SideChannelManager(sideChannels: [receiver]).processSideChannelMessage(message: data)
+        let messages = receiver.getAndClearReceivedMessages()
+        XCTAssertEqual(2, messages.count)
+        XCTAssertEqual("foo", String(bytes: messages[0], encoding: .utf8))
+        XCTAssertEqual("bar", String(bytes: messages[1], encoding: .utf8))
     }
 
     func testMessageBool() throws {
@@ -100,5 +115,32 @@ class SideChannelTest: XCTestCase {
         //Test reading with defaults
         XCTAssertEqual([], msgIn.readFloat32List())
         XCTAssertEqual(val, msgIn.readFloat32List(defaultValue: val))
+    }
+
+    func testEngineConfiguration() throws {
+        let sender = EngineConfigurationChannel()
+        let receiver = RawBytesChannel(channelId: sender.channelId)
+
+        let config = EngineConfig.defaultConfig
+        try sender.setConfiguration(config)
+        var data = try SideChannelManager(sideChannels: [sender]).generateSideChannelMessages()
+        try SideChannelManager(sideChannels: [receiver]).processSideChannelMessage(message: data)
+        let receivedData = receiver.getAndClearReceivedMessages()
+        XCTAssertEqual(5, receivedData.count)
+
+        let sentTimeScale: Float32 = 4.5
+        try sender.setConfigurationParameters(timeScale: sentTimeScale)
+        data = try SideChannelManager(sideChannels: [sender]).generateSideChannelMessages()
+        try SideChannelManager(sideChannels: [receiver]).processSideChannelMessage(message: data)
+        let message = IncomingMessage(buffer: ByteBuffer(bytes: receiver.getAndClearReceivedMessages()[0]))
+        let _ = message.readInt32()
+        let timeScale = message.readFloat32()
+        XCTAssertEqual(sentTimeScale, timeScale)
+
+        XCTAssertThrowsError(try sender.setConfigurationParameters(width: nil, height: 42))
+
+        try sender.setConfigurationParameters(timeScale: sentTimeScale)
+        data = try SideChannelManager(sideChannels: [sender]).generateSideChannelMessages()
+        XCTAssertThrowsError(try SideChannelManager(sideChannels: [sender]).processSideChannelMessage(message: data))
     }
 }
