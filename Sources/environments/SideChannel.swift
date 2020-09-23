@@ -10,11 +10,10 @@ import NIO
 
 class SideChannel {
     let channelId: UUID
-    var messageQueue: [ByteBuffer]
+    var messageQueue = [ByteBuffer]()
     
     init(channelId: UUID) {
         self.channelId = channelId
-        self.messageQueue = []
     }
     
     func queueMessageToSend(msg: OutgoingMessage) -> Void {

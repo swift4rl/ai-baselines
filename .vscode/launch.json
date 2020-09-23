@@ -8,8 +8,17 @@
             "type": "lldb",
             "request": "launch",
             "name": "Run",
-            "program": "./.build/x86_64-unknown-linux-gnu/debug/Run",
-            "preLaunchTask": "swift-build"
+            "program": "./.build/debug/Run",
+            "preLaunchTask": "swift-build",
+            "initCommands": ["set set target.disable-aslr false"]
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug tests on Linux",
+            "program": "./.build/debug/ai-baselinesPackageTests.xctest",
+            "preLaunchTask": "swift-build-tests",
+            "initCommands": ["set set target.disable-aslr false"]
         }
     ]
 }

@@ -14,7 +14,7 @@ class IncomingMessage {
          self.buffer = buffer
     }
 
-    func readBool(defaultValue: Bool = false) -> Bool {
+    func readBool(_ defaultValue: Bool = false) -> Bool {
         if buffer.readableBytes < MemoryLayout<Bool>.size {
              return defaultValue
         }
@@ -24,7 +24,7 @@ class IncomingMessage {
         return value == 0x01
     }
 
-    func readInt32(defaultValue: Int32 = 0) -> Int32 {
+    func readInt32(_ defaultValue: Int32 = 0) -> Int32 {
         if buffer.readableBytes < MemoryLayout<Int32>.size {
              return defaultValue
         }
@@ -34,7 +34,7 @@ class IncomingMessage {
         return ret
     }
 
-    func readFloat32(defaultValue: Float32 = 0.0) -> Float32 {
+    func readFloat32(_ defaultValue: Float32 = 0.0) -> Float32 {
         if buffer.readableBytes < MemoryLayout<Float32>.size {
              return defaultValue
         }
@@ -43,7 +43,7 @@ class IncomingMessage {
         return ret
     }
 
-    func readFloat32List(defaultValue: [Float32] = []) -> [Float32] {
+    func readFloat32List(_ defaultValue: [Float32] = []) -> [Float32] {
         if buffer.readableBytes < defaultValue.count * MemoryLayout<Float32>.size {
              return defaultValue
         }
@@ -51,7 +51,7 @@ class IncomingMessage {
         return (0..<listLen).map{ _ -> Float32 in readFloat32() }
     }
 
-    func readString(defaultValue: String = "") -> String {
+    func readString(_ defaultValue: String = "") -> String {
         if buffer.readableBytes == 0 {
              return defaultValue
         }
