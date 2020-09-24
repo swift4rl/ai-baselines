@@ -10,9 +10,10 @@ import Foundation
 import TensorFlow
 
 
-class UnityToGymWrapper {
+class UnityToGymWrapper<T: BaseEnv> {
+    typealias GymStepResult = ()
 
-    var unityEnv: BaseEnv?
+    var unityEnv: T?
     var uint8Visual: Bool = false
     var flattenBranched: Bool = false
     var allowMultipleObs: Bool = false
@@ -24,7 +25,7 @@ class UnityToGymWrapper {
     //Hidden flag used by Atari environments to determine if the game is over
     var gameOver: Bool
     
-    init<T: BaseEnv>(unityEnv: T, uint8Visual: Bool, flattenBranched: Bool, allowMultipleObs: Bool) throws {
+    init(unityEnv: T, uint8Visual: Bool, flattenBranched: Bool, allowMultipleObs: Bool) throws {
         self.gameOver = false
         self.allowMultipleObs = allowMultipleObs
         self.unityEnv = unityEnv
@@ -102,13 +103,13 @@ class UnityToGymWrapper {
         do { try self._check_agents(nAgents:steps.0.agentIdToIndex.count)}
         self.gameOver = false
 
-        res = self.singleStep(steps.0)
+        let res = self.singleStep(steps.0)
         return res[0]
         
 
     }
     func step(){}
-    func singleStep(){
+    func singleStep(_ arg: Any) -> GymStepResult {
         
 //        def _single_step(self, info: Union[DecisionSteps, TerminalSteps]) -> GymStepResult:
 //            if self._allow_multiple_obs:
@@ -159,16 +160,16 @@ class UnityToGymWrapper {
 //                result.append(obs)
 //        return result
     
-    
-    func getVisObsList(step_result: (DecisionSteps, TerminalSteps)) -> Tensor<Float> {
+    //TODO continue here
+    // func getVisObsList(step_result: (DecisionSteps, TerminalSteps)) -> Tensor<Float> {
         
-        let result: Tensor<Float> = [Tensor<Float>([])]
-        for obs in step_result.0.obs {
-            if (obs.shape.contiguousSize == 4) {
-                result.add
-            }
-        }
-    }
+    //     let result: Tensor<Float> = Tensor<Float>([])
+    //     for obs in step_result.0.obs {
+    //         if (obs.shape.contiguousSize == 4) {
+    //             result.add
+    //         }
+    //     }
+    // }
 }
 
 

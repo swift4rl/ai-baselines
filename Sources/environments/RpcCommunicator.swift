@@ -41,11 +41,9 @@ class UnityToExternalServicerImplementation : CommunicatorObjects_UnityToExterna
     }
     
     func exchange(request: CommunicatorObjects_UnityMessageProto, context: StatusOnlyCallContext) -> EventLoopFuture<CommunicatorObjects_UnityMessageProto> {
-       EventLoopFuture<CommunicatorObjects_UnityMessageProto> {
         let p = context.eventLoop.makePromise(of: CommunicatorObjects_UnityMessageProto.self)
         q.append((request,p))
         return p.futureResult
-    }
     }
 }
 
