@@ -7,6 +7,7 @@
 
 
 import Foundation
+import TensorFlow
 
 
 class UnityToGymWrapper {
@@ -18,6 +19,7 @@ class UnityToGymWrapper {
     var previousDecisionStep: DecisionSteps
     var terminalStep: TerminalSteps
     var steps: (DecisionSteps, TerminalSteps)
+    var name: String
     
     //Hidden flag used by Atari environments to determine if the game is over
     var gameOver: Bool
@@ -36,7 +38,7 @@ class UnityToGymWrapper {
             """)
         }
         
-        let name: String = Array(behaviourSpec.keys)[0]
+        self.name = Array(behaviourSpec.keys)[0]
         let groupSpec = behaviourSpec[name]
 
         // Check for number of agents in scene.
@@ -94,10 +96,10 @@ class UnityToGymWrapper {
     }
     
     
-    func reset() -> Void {
+    func reset() throws -> Void {
         self.unityEnv!.reset()
-        self.steps = self.unityEnv!.getSteps(behaviorName: name)
-        { try self._check_agents(nAgents:steps.0.agentIdToIndex.count)}
+        self.steps = self.unityEnv!.getSteps(behaviorName: self.name)
+        do { try self._check_agents(nAgents:steps.0.agentIdToIndex.count)}
         self.gameOver = false
 
         res = self.singleStep(steps.0)
@@ -106,7 +108,37 @@ class UnityToGymWrapper {
 
     }
     func step(){}
-    func singleStep(){}
+    func singleStep(){
+        
+//        def _single_step(self, info: Union[DecisionSteps, TerminalSteps]) -> GymStepResult:
+//            if self._allow_multiple_obs:
+//                visual_obs = self._get_vis_obs_list(info)
+//                visual_obs_list = []
+//                for obs in visual_obs:
+//                    visual_obs_list.append(self._preprocess_single(obs[0]))
+//                default_observation = visual_obs_list
+//                if self._get_vec_obs_size() >= 1:
+//                    default_observation.append(self._get_vector_obs(info)[0, :])
+//            else:
+//                if self._get_n_vis_obs() >= 1:
+//                    visual_obs = self._get_vis_obs_list(info)
+//                    default_observation = self._preprocess_single(visual_obs[0][0])
+//                else:
+//                    default_observation = self._get_vector_obs(info)[0, :]
+//
+//            if self._get_n_vis_obs() >= 1:
+//                visual_obs = self._get_vis_obs_list(info)
+//                self.visual_obs = self._preprocess_single(visual_obs[0][0])
+//
+//            done = isinstance(info, TerminalSteps)
+//
+//            return (default_observation, info.reward[0], done, {"step": info})
+//
+        if self.allowMultipleObs {}
+        
+        
+        
+    }
     func close() {}
     
     
@@ -115,6 +147,26 @@ class UnityToGymWrapper {
         throw UnityGymWrapperError.unityGymException(reason: """
         There can only be one agent in a UnitEnvironment
         """)
+        }
+    }
+    
+//    def _get_vis_obs_list(
+//        self, step_result: Union[DecisionSteps, TerminalSteps]
+//    ) -> List[np.ndarray]:
+//        result: List[np.ndarray] = []
+//        for obs in step_result.obs:
+//            if len(obs.shape) == 4:
+//                result.append(obs)
+//        return result
+    
+    
+    func getVisObsList(step_result: (DecisionSteps, TerminalSteps)) -> Tensor<Float> {
+        
+        let result: Tensor<Float> = [Tensor<Float>([])]
+        for obs in step_result.0.obs {
+            if (obs.shape.contiguousSize == 4) {
+                result.add
+            }
         }
     }
 }
