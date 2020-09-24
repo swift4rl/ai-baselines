@@ -12,7 +12,9 @@ let package = Package(
     ],
     dependencies: [
         .package(name: "grpc-swift", url: "https://github.com/grpc/grpc-swift.git",  .exact("1.0.0-alpha.18")),
-        .package(name: "Version", url: "https://github.com/mrackwitz/Version.git", .exact("0.8.0"))
+        .package(name: "Version", url: "https://github.com/mrackwitz/Version.git", .exact("0.8.0")),
+        .package(url: "https://github.com/pvieito/PythonKit.git", .branch("master")),
+        .package(name: "swift-models", url: "https://github.com/swift4rl/swift-models.git", .branch("master"))
     ],
     targets: [
         .target(
@@ -24,8 +26,11 @@ let package = Package(
         ),
         .target(
             name: "Run",
-            dependencies: ["environments"]
-        ),
+            dependencies: [
+                "environments",
+                .product(name: "Gym", package: "swift-models"),
+            ]
+        ),        
         .testTarget(
             name: "TestEnvironments",
             dependencies: ["environments"]
