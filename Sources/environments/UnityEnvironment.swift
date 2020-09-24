@@ -164,8 +164,7 @@ extension Env {
         }
     }
     
-    init(
-        fileName: String?,
+    init?(
         workerId: Int = 0,
         basePort: Int?,
         seed: Int = 0,
@@ -175,8 +174,9 @@ extension Env {
         sideChannels: [SideChannel]? = Optional.none,
         logFolder: String? = Optional.none
         ) throws {
+        try self.init(basePort: basePort)
         self.sideChannelManager = try SideChannelManager(sideChannels: sideChannels)
-        let port: Int = fileName.map({_ in Defaults.BASE_ENVIRONMENT_PORT}) ?? Defaults.DEFAULT_EDITOR_PORT
+        let port: Int = Defaults.DEFAULT_EDITOR_PORT
         self.communicator = RpcCommunicator(workerId: workerId, port: port)
     }
     
@@ -336,7 +336,7 @@ extension Env {
         for brainName in self.envSpecs.keys {
             if output.agentInfos.keys.contains(brainName) {
                 if let agentInfo = output.agentInfos[brainName], let envSpec = self.envSpecs[brainName] {
-                    self.envState[brainName] = stepsFromProto(agentInfoList: agentInfo.value, behaviorSpec: envSpec)
+                    self.envState[brainName] = try stepsFromProto(agentInfoList: agentInfo.value, behaviorSpec: envSpec)
                 }
             } else {
                 if let envSpec =  self.envSpecs[brainName] {
@@ -360,13 +360,20 @@ extension Env {
 }
 
 class UnityContinousEnvironment: Env {
+    typealias BehaviorSpecImpl = BehaviorSpecContinousAction
     var props: Props<BehaviorSpecContinousAction>
-    init() {}
+    
+    init(communicator co: RpcCommunicator, client cl: CommunicatorObjects_UnityToExternalProtoClient, sideChannelManager scm: SideChannelManager) {
+        self.props = Props<BehaviorSpecContinousAction>(communicator: co, client: cl, sideChannelManager: scm)
+    }
+    
 }
 
 class UnityDiscreteEnvironment: Env {
+    typealias BehaviorSpecImpl = BehaviorSpecDiscreteAction
     var props: Props<BehaviorSpecDiscreteAction>
-    init() {}
+    
+    init(communicator co: RpcCommunicator, client cl: CommunicatorObjects_UnityToExternalProtoClient, sideChannelManager scm: SideChannelManager) {
+        self.props = Props<BehaviorSpecDiscreteAction>(communicator: co, client: cl, sideChannelManager: scm)
+    }
 }
-
-

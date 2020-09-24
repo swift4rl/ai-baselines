@@ -79,7 +79,7 @@ public class PlatformAgent : Agent
         platformRigidbody.AddForce(controlSignal * forceMultiplier);
 
         // Pole fell off platform
-        if (pole.transform.localPosition.y < 0.1f || Mathf.Abs(gameObject.transform.localPosition.z) > areaSize || Mathf.Abs(gameObject.transform.localPosition.x) > areaSize)
+        if (pole.transform.localPosition.y < 0.2f || Mathf.Abs(gameObject.transform.localPosition.z) > areaSize || Mathf.Abs(gameObject.transform.localPosition.x) > areaSize)
         {
             SetReward(-1f);
             EndEpisode();

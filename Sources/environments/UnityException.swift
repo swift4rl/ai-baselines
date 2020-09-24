@@ -12,4 +12,7 @@ enum UnityException: Error {
     case UnityCommunicatorStoppedException(reason: String)
     case UnityActionException(reason: String)
     case UnityGymException(reason: String)
+    case UnityCommunicationException(reason: String)
+    case UnitySideChannelException(reason: String)
+	case UnityObservationException(reason: String)
 }

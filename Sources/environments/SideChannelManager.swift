@@ -19,14 +19,9 @@ class SideChannelManager {
 
     func processSideChannelMessage(message: Data) throws -> Void {
         var data = ByteBuffer(data: message)
-        while data.writerIndex < data.capacity {
-            guard let channelId: UUID = data.readString(length: 16).flatMap({UUID(uuidString: $0)}) else {
-                throw UnityException.UnityEnvironmentException(reason: """
-                    There was a problem reading a message in a SideChannel.
-                    Please make sure the version of MLAgents in Unity is
-                    compatible with the Python version.
-                    """
-                )
+        while data.readableBytes > 0 {
+            guard let channelId: UUID = data.readString(length: 36).flatMap({UUID(uuidString: $0)}) else {
+                throw UnityException.UnityEnvironmentException(reason: "There was a problem reading a message channelId in a SideChannel.")
             }
             
             guard let messageData: ByteBuffer = data.readInteger(as: Int.self).flatMap({data.readSlice(length: $0)}) else {
@@ -40,7 +35,7 @@ class SideChannelManager {
             
             if self.sideChannelsDict.keys.contains(channelId){
                 let incomingMessage = IncomingMessage(buffer: messageData)
-                self.sideChannelsDict[channelId]?.onMessageReceived(msg: incomingMessage)
+                try self.sideChannelsDict[channelId]!.onMessageReceived(msg: incomingMessage)
             } else {
                 logger.warning("Unknown side channel data received. Channel type: \(channelId).")
             }
@@ -53,12 +48,13 @@ class SideChannelManager {
             for message in channel.messageQueue {
                 var m = message
                 result.writeString(channelId.uuidString)
-                result.writeInteger(message.capacity)
+                result.writeInteger(message.readableBytes)
                 result.writeBuffer(&m)
             }
             channel.messageQueue = []
         }
-        return result.readData(length: result.capacity)!
+        let ret = result.readData(length: result.readableBytes)!
+        return ret
     }
     
     static func getSideChannelsDict(sideChannels: [SideChannel]?) throws -> [UUID: SideChannel] {

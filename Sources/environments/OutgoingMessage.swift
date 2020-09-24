@@ -11,34 +11,34 @@ import NIO
 class OutgoingMessage {
     var buffer: ByteBuffer = ByteBuffer()
     
-    func writeBool(b: Bool) -> Void {
+    func writeBool(_ b: Bool) -> Void {
         var c = b
         self.buffer.writeBytes(Data(bytes: &c, count: 1))
     }
     
-    func writeInt32(i: Int32) -> Void {
+    func writeInt32(_ i: Int32) -> Void {
         self.buffer.writeInteger(i)
     }
 
-    func writeFloat32(f: Float32) -> Void{
+    func writeFloat32(_ f: Float32) -> Void{
         self.buffer.writeInteger(f.bitPattern)
     }
 
-    func writeFloat32List(floatList: [Float]) -> Void{
-        self.writeInt32(i: Int32(floatList.count))
+    func writeFloat32List(_ floatList: [Float]) -> Void{
+        self.writeInt32(Int32(floatList.count))
         for f in floatList{
-            self.writeFloat32(f: f)
+            self.writeFloat32(f)
         }
     }
 
-    func writeString(s: String) throws -> Void  {
+    func writeString(_ s: String) throws -> Void  {
         let bytes = s.data(using: String.Encoding.ascii)!
         let _s = String(data: bytes, encoding: String.Encoding.ascii)!
-        self.writeInt32(i: Int32(_s.count))
+        self.writeInt32(Int32(_s.count))
         try buffer.writeString(_s, encoding: String.Encoding.ascii)
     }
 
-    func setRawBytes(buffer: ByteBuffer) -> Void {
+    func setRawBytes(_ buffer: ByteBuffer) -> Void {
         self.buffer = ByteBuffer(buffer: buffer)
     }
 }
