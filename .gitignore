@@ -280,3 +280,9 @@ Project/[Aa]ssets/[Aa]ddressable[Aa]ssets[Dd]ata/*/*.bin*
 # Temporary auto-generated Android Assets
 Project/[Aa]ssets/[Ss]treamingAssets/aa.meta
 Project/[Aa]ssets/[Ss]treamingAssets/aa/*
+
+# For unity envs used in experiments
+envs/
+logs/
+
+*.app
