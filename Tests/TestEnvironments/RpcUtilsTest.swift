@@ -13,16 +13,44 @@ import NIO
 import Logging
 @testable import environments
 
+extension Array {
+    static func *(lhs: Array,rhs : Array) ->
+              [[Array.Iterator.Element]]
+    {
+        let product = rhs.flatMap({ x in lhs.map{y in [x,y]}})
+        return product
+    }
+}
+
 final class RpcUtilsTest: XCTestCase {
     
     func split<T>(_ t: Tensor<T>, _ i: [Int]) -> [Tensor<T>] {
        return t.split(sizes: [3,3,3], alongAxis: 1)
     }
+    
     func testSplit(){
         let givenTensor = Tensor<Bool>(repeating: false, shape: TensorShape(16,9))
         let givenIndices = [3,6]
         let r1 = Tensor<Bool>(repeating: false, shape: TensorShape(16,3))
         let expected = [r1, r1, r1]
         XCTAssertEqual(expected, split(givenTensor,givenIndices))
+    }
+  
+    
+    func testCartesian(){
+        let a: [[Int]] = [2, 3, 3].map{Array(0..<$0)}
+        let r = Array(Product(a))
+        XCTAssertEqual(18, r.count)
+        XCTAssertEqual([[0, 0, 0], [0, 0, 1], [0, 0, 2], [0, 1, 0], [0, 1, 1], [0, 1, 2], [0, 2, 0], [0, 2, 1], [0, 2, 2], [1, 0, 0], [1, 0, 1], [1, 0, 2], [1, 1, 0], [1, 1, 1], [1, 1, 2], [1, 2, 0], [1, 2, 1], [1, 2, 2]], r)
+        XCTAssertEqual(r.enumerated().reduce(into: [:]){map, el in
+            map[el.0] = el.1
+        }, [0: [0, 0, 0], 1: [0, 0, 1], 2: [0, 0, 2], 3: [0, 1, 0], 4: [0, 1, 1], 5: [0, 1, 2], 6: [0, 2, 0], 7: [0, 2, 1], 8: [0, 2, 2], 9: [1, 0, 0], 10: [1, 0, 1], 11: [1, 0, 2], 12: [1, 1, 0], 13: [1, 1, 1], 14: [1, 1, 2], 15: [1, 2, 0], 16: [1, 2, 1], 17: [1, 2, 2]])
+    }
+    
+    func testTensor() {
+        let given = Tensor<Int32>(repeating: 1, shape: [2,8])
+        let result = given.gathering(atIndices: Tensor<Int32>(Int32(0)), alongAxis: 0)
+        print(result)
+        XCTAssertEqual(TensorShape(8), result.shape)
     }
 }
