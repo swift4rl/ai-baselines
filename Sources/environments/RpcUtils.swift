@@ -79,7 +79,7 @@ throws -> (DecisionSteps, TerminalSteps)  {
     let terminalAgentId = terminalAgentInfoList.map({$0.id})
     
     var actionMask: Optional<[Tensor<Bool>]> = Optional.none
-    if behaviorSpec.isActionDiscrete {
+    if let behaviorSpec = behaviorSpec as? BehaviorSpecDiscreteAction{
         let nAgents = decisionAgentInfoList.count
         if let aSize = behaviorSpec.discreteActionBranches?.reduce(0, +) {
             var maskMatrix = Tensor<Bool>(repeating: true, shape: [nAgents, Int(aSize)])
@@ -94,7 +94,6 @@ throws -> (DecisionSteps, TerminalSteps)  {
             }
         }
     }
-    //return (DecisionSteps.empty(spec: behaviorSpec), TerminalSteps.empty(spec: behaviorSpec))
     return (
         DecisionSteps(
             obs: decisionObsList, reward: Tensor(decisionRewards), agentId: decisionAgentId, actionMask: actionMask

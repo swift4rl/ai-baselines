@@ -161,7 +161,7 @@ class DecisionSteps: Steps {
  spaces for a group of Agents under the same behavior.
  */
 protocol BehaviorSpec {
-    associatedtype Scalar: TensorFlowNumeric
+    associatedtype Scalar: TensorFlowNumeric & Hashable & Strideable
     
     var observationShapes: [[Int32]] { get set }
     var actionType: ActionType { get set }
@@ -174,7 +174,7 @@ protocol BehaviorSpec {
        for each branch (only for discrete actions). Will return None in
        for continuous actions.
     */
-    var discreteActionBranches: [Int32]? { get }
+    var discreteActionBranches: [Scalar]? { get }
     
     /** the dimension of the action.
         - In the continuous case, will return the number of continuous actions.
@@ -228,12 +228,11 @@ extension BehaviorSpec {
 
 struct BehaviorSpecContinousAction: BehaviorSpec {
     
+    typealias Scalar = Float32
+    
     static func create(observationShapes: [[Int32]], actionShape: [Int32]) -> BehaviorSpecContinousAction {
         return BehaviorSpecContinousAction(observationShapes: observationShapes, actionShape: actionShape)
     }
-    
-    
-    typealias Scalar = Float32
     
     init() {}
 
@@ -255,7 +254,7 @@ struct BehaviorSpecContinousAction: BehaviorSpec {
         return Int(self.actionShape[0])
     }
     
-    var discreteActionBranches: [Int32]? {
+    var discreteActionBranches: [Scalar]? {
         return Optional.none
     }
     
@@ -272,11 +271,11 @@ struct BehaviorSpecContinousAction: BehaviorSpec {
 
 struct BehaviorSpecDiscreteAction: BehaviorSpec {
     
+    typealias Scalar = Int32
+    
     static func create(observationShapes: [[Int32]], actionShape: [Int32]) -> BehaviorSpecDiscreteAction {
         return BehaviorSpecDiscreteAction(observationShapes: observationShapes, actionShape: actionShape)
     }
-
-    typealias Scalar = Int32
     
     init() {}
 
@@ -298,7 +297,7 @@ struct BehaviorSpecDiscreteAction: BehaviorSpec {
         return self.actionShape.count
     }
     
-    var discreteActionBranches: [Int32]? {
+    var discreteActionBranches: [Scalar]? {
         return Optional.some( self.actionShape )
     }
     
@@ -430,6 +429,10 @@ extension BaseEnv {
         get { return props.loaded }
         set { props.loaded = newValue }
     }
+    var noGraphics: Bool {
+        get { return props.noGraphics }
+        set { props.noGraphics = newValue }
+    }
     var envSpecs: [String: BehaviorSpecImpl] {
         get { return props.envSpecs }
         set { props.envSpecs = newValue }
@@ -449,6 +452,10 @@ extension BaseEnv {
     var communicator: RpcCommunicator {
         get { return props.communicator }
         set { props.communicator = newValue }
+    }
+    var port: Int {
+        get { return props.port }
+        set { props.port = newValue }
     }
     var behaviorSpecs: BehaviorMapping {
         get { return props.envSpecs }
@@ -507,19 +514,59 @@ extension BaseEnv {
     }
     
     init?(
+        filename: String?,
         workerId: Int = 0,
         basePort: Int?,
-        seed: Int = 0,
+        seed: Int32 = 0,
         noGraphics: Bool = false,
         timeoutWait: Int = 60,
         additionalArgs: [String]? = Optional.none,
         sideChannels: [SideChannel]? = Optional.none,
         logFolder: String? = Optional.none
         ) throws {
-        try self.init(basePort: basePort)
+        try self.init(filename: filename, basePort: basePort)
+        if let filename = filename {
+            let task = Process()
+            task.executableURL = URL(fileURLWithPath: filename)
+            var args: [String] = []
+            if self.noGraphics {
+                args += ["-nographics", "-batchmode"]
+            }
+            args += [Defaults._PORT_COMMAND_LINE_ARG, String(self.port)]
+            if let logFolder = logFolder {
+                args += ["-logFile", "\(logFolder)/Player-\(workerId).log"]
+            }
+            if let aArgs = additionalArgs {
+                args += aArgs
+            }
+            task.arguments = args
+            let outputPipe = Pipe()
+            let errorPipe = Pipe()
+
+            task.standardOutput = outputPipe
+            task.standardError = errorPipe
+            try task.run()
+        }
         self.sideChannelManager = try SideChannelManager(sideChannels: sideChannels)
         let port: Int = Defaults.DEFAULT_EDITOR_PORT
         self.communicator = RpcCommunicator(workerId: workerId, port: port)
+        var rlInitParametersIn = CommunicatorObjects_UnityRLInitializationInputProto()
+        rlInitParametersIn.seed = seed
+        rlInitParametersIn.communicationVersion = Defaults.API_VERSION
+        rlInitParametersIn.packageVersion = "0.20.0"
+        rlInitParametersIn.capabilities = Self.getCapabilitiesProto()
+        let acaOutput = self.sendAcademyParameters(initParameters: rlInitParametersIn)
+        let acaParams = acaOutput?.rlInitializationOutput
+        
+        if let unityComVer = acaParams?.communicationVersion,
+           let unityPackageVersion = acaParams?.packageVersion,
+           !Self.checkCommunicationCompatibility(unityComVer: unityComVer, swiftApiVersion: Defaults.API_VERSION, unityPackageVersion: unityPackageVersion){
+            try Self.raiseVersionException(unityComVer: unityComVer)
+        }
+        self.isFirstMessage = true
+        if let output = acaOutput {
+            self.updateBehaviorSpecs(output: output)
+        }
     }
     
     mutating func step() throws -> Void {

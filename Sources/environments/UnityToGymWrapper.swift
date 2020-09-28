@@ -9,19 +9,46 @@ import Foundation
 import Logging
 import TensorFlow
 
-struct GymStepResult {
-    init() {
+enum StepResult<T: TensorFlowNumeric>{
+    case SingleStepResult(observation: Tensor<T>, reward: Float32, done: Bool, info:[String:AnyObject])
+    case MultiStepResult(observation: [Tensor<T>], reward: Float32, done: Bool, info:[String:AnyObject])
+}
+
+protocol Space {
+}
+
+struct Discrete: Space {
+    init(_ branch: Int32) {
         
     }
 }
 
+struct MultiDiscrete: Space {
+    init(_ branches: [Int32]) {
+        
+    }
+}
+
+struct Box<Scalar: TensorFlowScalar>: Space {
+    init(min: Tensor<Scalar>, max: Tensor<Scalar>) {
+    }
+    init(min: Scalar, max: Scalar, shape: [Int32]?) {
+    }
+}
+
+struct Tuple: Space {
+    init(_ spaces: [Space]) {
+    }
+}
+
+
 /**
  Flattens branched discrete action spaces into single-branch discrete action spaces.
  */
-class ActionFlattener {
+class ActionFlattener<T : Numeric & Hashable & Comparable & Strideable> {
     var actionSpace: Space
-    var actionShape: [Int32]
-    var actionLookup: [Int32: [Int32]]
+    var actionShape: [T]
+    var actionLookup: [T: [T]]
     
     /**
     Initialize the flattener.
@@ -29,7 +56,7 @@ class ActionFlattener {
         - branchedActionSpace: A List containing the sizes of each branch of the action
     space, e.g. [2,3,3] for three branches with size 2, 3, and 3 respectively.
     */
-    init(_ branchedActionSpace: [Int32]) {
+    init(_ branchedActionSpace: [T]) {
         self.actionShape = branchedActionSpace
         self.actionLookup = Self.createLookup(self.actionShape)
         self.actionSpace = Discrete(Int32(self.actionLookup.count))
@@ -40,12 +67,12 @@ class ActionFlattener {
     Each key in the Dict maps to one unique set of branched actions, and each value
     contains the List of branched actions.
     */
-    static func createLookup(_ branchedActionSpace: [Int32]) -> [Int32: [Int32]] {
-        let possibleVals = branchedActionSpace.map{Array(0..<$0)}
+    static func createLookup(_ branchedActionSpace: [T]) -> [T: [T]] {
+        let possibleVals: [[T]] = branchedActionSpace.map{Array(stride(from: T.init(exactly: 0)!, to: $0, by: 1))}
         let allActions = Array(Product(possibleVals))
         
         return allActions.enumerated().reduce(into: [:]){map, el in
-            map[Int32(el.0)] = el.1
+            map[T(exactly: el.0)!] = el.1
         }
         
     }
@@ -57,20 +84,31 @@ class ActionFlattener {
     - Returns:
         - The List containing the branched actions.
     */
-    func lookupAction(action: Int32)-> [Int32]?{
+    func lookupAction(_ action: T)-> [T]?{
         return self.actionLookup[action]
     }
+    
+    func lookupAction(_ action: Tensor<T>) -> Tensor<T> where T: TensorFlowScalar{
+        var act = action
+        if let a = action.scalar,
+           let lA = lookupAction(a){
+            act = Tensor<T>(shape: TensorShape(lA.count), scalars: lA)
+        }
+        return act;
+    }
+    
 }
 
 class UnityToGymWrapper<Env: BaseEnv> {
-
+    typealias Scalar = Env.BehaviorSpecImpl.Scalar
+    
     var env: Env
     var uint8Visual: Bool = false
     var flattenBranched: Bool = false
     var allowMultipleObs: Bool = false
     var gameOver: Bool = false
     var previousDecisionStep: DecisionSteps? = Optional.none
-    var flattener: ActionFlattener? = Optional.none
+    var flattener: ActionFlattener<Scalar>? = Optional.none
     var name: BehaviorName? = Optional.none
     var groupSpec: Env.BehaviorSpecImpl? = Optional.none
     var actionSpace: Space? = Optional.none
@@ -141,12 +179,12 @@ class UnityToGymWrapper<Env: BaseEnv> {
             throw UnityException.UnityGymException(reason: "groupSpec is empty")
         }
         // Set action spaces
-        if groupSpec.isActionDiscrete, let branches = groupSpec.discreteActionBranches {
+        if let groupSpec = groupSpec as? BehaviorSpecDiscreteAction,
+           let branches = groupSpec.discreteActionBranches {
             if self.groupSpec?.actionSize == 1 {
-                self.actionSpace = Discrete(branches[0])
+               self.actionSpace = Discrete(branches[0])
             } else {
-                if flattenBranched {
-                    let a = ActionFlattener(branches)
+                if flattenBranched, let a = ActionFlattener<Int32>(branches) as? ActionFlattener<Scalar>{
                     self.flattener = a
                     self.actionSpace = a.actionSpace
                 } else {
@@ -191,19 +229,18 @@ class UnityToGymWrapper<Env: BaseEnv> {
      - Returns: observation (object/list): the initial observation of the
      space.
      */
-    func reset() throws-> Tensor<Float32> {
+    func reset() throws-> StepResult<Float32> {
         try self.env.reset()
         guard let (decisionSteps, _) = try self.name.flatMap({try self.env.getSteps(behaviorName: $0)}) else {
             throw UnityException.UnityGymException(reason: """
                 There are no steps provided by the environment
             """)
         }
-        var nAgents = decisionSteps.len()
+        let nAgents = decisionSteps.len()
         try Self.checkAgents(nAgents)
         self.gameOver = false
 
-        let res = self.singleStep(decisionSteps)
-        return res[0]
+        return self.singleStep(decisionSteps)
     }
 
     /**
@@ -220,18 +257,18 @@ class UnityToGymWrapper<Env: BaseEnv> {
         - info (dict): contains auxiliary diagnostic information.
      """
      */
-    func step(action: Tensor<Int32>) throws -> GymStepResult {
+    func step(action: Tensor<Scalar>) throws -> StepResult<Float32>{
         var act = action
         if let flattener = self.flattener {
-            var act = flattener.lookupAction(action)
+            act = flattener.lookupAction(action)
         }
 
         if let spec = self.groupSpec {
             act = action.reshaped(to: TensorShape(1, spec.actionSize))
         }
-        
+
         if let n = self.name {
-            self.env.setActions(behaviorName: n, action: act)
+            try self.env.setActions(behaviorName: n, action: act)
         }
 
         try self.env.step()
@@ -248,33 +285,40 @@ class UnityToGymWrapper<Env: BaseEnv> {
             return self.singleStep(decisionStep)
         }
     }
+
+    func singleStep<StepsImpl: Steps>(_ info: StepsImpl) -> StepResult<Float32> {
+        var defaultObservationSingle: Tensor<Float32>? = nil
+        var defaultObservationMulti: [Tensor<Float32>] = []
     
-    func singleStep<StepsImpl: Steps>(_ info: StepsImpl) -> GymStepResult {
         if self.allowMultipleObs {
-            var visualObs = self.getVisObsList(info)
+            let visualObs = self.getVisObsList(info)
             var visualObsList: [Tensor<Float32>] = []
             for obs in visualObs {
                 visualObsList.append(self.preprocessSingle(obs[0]))
             }
-            var defaultObservation = visualObsList
+            defaultObservationMulti = visualObsList
             if let vecObsSize = self.getVecObsSize(), vecObsSize >= 1 {
-                defaultObservation.append(self.getVectorObs(info).gathering(atIndices: Tensor<Int32>(Int32(0)), alongAxis: 0))
+                defaultObservationMulti.append(self.getVectorObs(info).gathering(atIndices: Tensor<Int32>(Int32(0)), alongAxis: 0))
             }
         } else {
             if let nVisObs = self.getNVisObs(), nVisObs >= 1 {
                 let visualObs = self.getVisObsList(info)
-                defaultObservation = self.preprocessSingle(visualObs[0][0])
+                defaultObservationSingle = self.preprocessSingle(visualObs[0][0])
             } else {
-                defaultObservation = self.getVectorObs(info).gathering(atIndices: Tensor<Int32>(Int32(0)), alongAxis: 0)
+                defaultObservationSingle = self.getVectorObs(info).gathering(atIndices: Tensor<Int32>(Int32(0)), alongAxis: 0)
             }
         }
         if let nVisObs = self.getNVisObs(), nVisObs >= 1 {
-            var visualObs = self.getVisObsList(info)
+            let visualObs = self.getVisObsList(info)
             self.visualObs = self.preprocessSingle(visualObs[0][0])
         }
-        var done = isinstance(info, TerminalSteps)
-
-        return GymStepResult(defaultObservation, info.reward[0], done, {"step": info})
+        let done = info is TerminalSteps ? true : false
+        if let obs = defaultObservationSingle {
+            return .SingleStepResult(observation: obs, reward: info.reward.scalars[0], done: done, info: [:])
+        } else {
+            return .MultiStepResult(observation: defaultObservationMulti, reward: info.reward.scalars[0], done: done, info: [:])
+        }
+        
     }
 
     func preprocessSingle(_ singleVisualObs: Tensor<Float32>) -> Tensor<Float32> {

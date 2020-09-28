@@ -47,6 +47,13 @@ final class RpcUtilsTest: XCTestCase {
         }, [0: [0, 0, 0], 1: [0, 0, 1], 2: [0, 0, 2], 3: [0, 1, 0], 4: [0, 1, 1], 5: [0, 1, 2], 6: [0, 2, 0], 7: [0, 2, 1], 8: [0, 2, 2], 9: [1, 0, 0], 10: [1, 0, 1], 11: [1, 0, 2], 12: [1, 1, 0], 13: [1, 1, 1], 14: [1, 1, 2], 15: [1, 2, 0], 16: [1, 2, 1], 17: [1, 2, 2]])
     }
     
+    func testActionFlattener(){
+        let aF = ActionFlattener<Int32>([2,3,3])
+        let r = aF.lookupAction(Tensor<Int32>(2))
+        XCTAssertEqual(Tensor<Int32>([0,0,2]), r)
+        
+    }
+    
     func testTensor() {
         let given = Tensor<Int32>(repeating: 1, shape: [2,8])
         let result = given.gathering(atIndices: Tensor<Int32>(Int32(0)), alongAxis: 0)

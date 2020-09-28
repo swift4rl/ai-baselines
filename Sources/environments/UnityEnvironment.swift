@@ -17,9 +17,11 @@ struct Props<T: BehaviorSpec> {
     var client: CommunicatorObjects_UnityToExternalProtoClient
     var sideChannelManager: SideChannelManager
     var loaded: Bool = false
+    var noGraphics: Bool = false
     var envState: [String: (DecisionSteps, TerminalSteps)] = [:]
     var envSpecs: [String: T] = [:]
     var envActions: [String: Tensor<T.Scalar>] = [:]
+    var port: Int = 5004
 }
 
 class UnityContinousEnvironment: BaseEnv {
