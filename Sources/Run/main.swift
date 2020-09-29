@@ -10,8 +10,6 @@ import TensorFlow
 import Gym
 import Foundation
 
-let rpc = RpcCommunicator(port: 5004)
-
 // Initialize Python. This comment is a hook for internal use, do not remove.
 let gym = Python.import("gym")
 let uw = Python.import("gym_unity.envs")
