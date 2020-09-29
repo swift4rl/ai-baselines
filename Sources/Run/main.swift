@@ -7,30 +7,24 @@
 
 import PythonKit
 import TensorFlow
-import Gym
 import Foundation
-
-let rpc = RpcCommunicator(port: 5004)
+import environments
 
 // Initialize Python. This comment is a hook for internal use, do not remove.
-let gym = Python.import("gym")
-let uw = Python.import("gym_unity.envs")
-let ue = Python.import("mlagents_envs.environment")
 let tf = Python.import("tensorflow")
-let usc = Python.import("mlagents_envs.side_channel.engine_configuration_channel")
 
 let dirPath = "/YOUR-PATH/ai-baselines/"
 let saved_unity_env_path = dirPath + "envs/YOUR-ENVIRONMENT.app"
 
-let channel = usc.EngineConfigurationChannel()
-channel.set_configuration_parameters(time_scale: 3.0)
 
-let unity_env = ue.UnityEnvironment(saved_unity_env_path, side_channels: [channel])
-let env = uw.UnityToGymWrapper(unity_env)
+let channel = EngineConfigurationChannel()
+try channel.setConfigurationParameters(timeScale: 3.0)
+let unityEnv = try UnityDiscreteEnvironment(filename: "/opt/cartpole.app", basePort: 5004, sideChannels: [channel])
+let env = try UnityToGymWrapper(unityEnv: unityEnv!, uint8Visual: false, flattenBranched: false, allowMultipleObs: false)
 
 //let env = gym.make("CartPole-v0")
-let observationSize: Int = Int(env.observation_space.shape[0])!
-let actionCount: Int = Int(env.action_space.n)!
+let observationSize: Int = Int(env.observationSpace.shape[0])!
+let actionCount: Int = Int(env.actionSpace.n)!
 
 // Hyperparameters
 /// The size of the hidden layer of the 2-layer actor network and critic network. The actor network

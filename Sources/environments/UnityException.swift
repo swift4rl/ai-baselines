@@ -7,7 +7,7 @@
 
 import Foundation
 
-enum UnityException: Error {
+public enum UnityException: Error {
     case UnityEnvironmentException(reason: String)
     case UnityCommunicatorStoppedException(reason: String)
     case UnityActionException(reason: String)

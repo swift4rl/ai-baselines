@@ -10,8 +10,8 @@ import TensorFlow
 import Logging
 import Version
 
-typealias AgentId = Int32
-typealias BehaviorName = String
+public typealias AgentId = Int32
+public typealias BehaviorName = String
 
 protocol Steps {
     var obs: [Tensor<Float32>] { get set }
@@ -54,7 +54,7 @@ struct DecisionStep {
  agents and the batch size of the DecisionSteps are not fixed across
  simulation steps.
  */
-class DecisionSteps: Steps {
+public class DecisionSteps: Steps {
     var obs: [Tensor<Float32>]
     var reward: Tensor<Float32>
     var agentId: [AgentId]
@@ -160,7 +160,7 @@ class DecisionSteps: Steps {
  A NamedTuple to containing information about the observations and actions
  spaces for a group of Agents under the same behavior.
  */
-protocol BehaviorSpec {
+public protocol BehaviorSpec {
     associatedtype Scalar: TensorFlowNumeric & Hashable & Strideable
     
     var observationShapes: [[Int32]] { get set }
@@ -220,45 +220,45 @@ extension BehaviorSpec {
     - Parameters:
      - n_agents: The number of agents that will have actions generated
     */
-    func createEmptyAction(nAgents: Int) -> Tensor<Scalar> {
+    public func createEmptyAction(nAgents: Int) -> Tensor<Scalar> {
         return Tensor<Scalar>(zeros: [nAgents, actionSize])
     }
     
 }
 
-struct BehaviorSpecContinousAction: BehaviorSpec {
+public struct BehaviorSpecContinousAction: BehaviorSpec {
     
-    typealias Scalar = Float32
+    public typealias Scalar = Float32
     
-    static func create(observationShapes: [[Int32]], actionShape: [Int32]) -> BehaviorSpecContinousAction {
+    public static func create(observationShapes: [[Int32]], actionShape: [Int32]) -> BehaviorSpecContinousAction {
         return BehaviorSpecContinousAction(observationShapes: observationShapes, actionShape: actionShape)
     }
     
-    init() {}
+    public init() {}
 
-    init(observationShapes: [[Int32]], actionShape: [Int32]) {
+    public init(observationShapes: [[Int32]], actionShape: [Int32]) {
         self.init(observationShapes: observationShapes, actionType: ActionType.CONTINUOUS, actionShape: actionShape)
     }
     
-    var isActionDiscrete: Bool = false
+    public var isActionDiscrete: Bool = false
     
-    var isActionContinuous: Bool = true
+    public var isActionContinuous: Bool = true
     
-    var observationShapes: [[Int32]] = []
+    public var observationShapes: [[Int32]] = []
     
-    var actionType: ActionType = ActionType.CONTINUOUS
+    public var actionType: ActionType = ActionType.CONTINUOUS
     
-    var actionShape: [Int32] = []
+    public var actionShape: [Int32] = []
     
-    var actionSize: Int {
+    public var actionSize: Int {
         return Int(self.actionShape[0])
     }
     
-    var discreteActionBranches: [Scalar]? {
+    public var discreteActionBranches: [Scalar]? {
         return Optional.none
     }
     
-    func createRandomAction(nAgents: Int) -> Tensor<Float32> {
+    public func createRandomAction(nAgents: Int) -> Tensor<Float32> {
         let action = Tensor<Float32>.init(
             randomUniform: [nAgents, self.actionSize],
             lowerBound: Tensor(-1.0),
@@ -269,35 +269,35 @@ struct BehaviorSpecContinousAction: BehaviorSpec {
     
 }
 
-struct BehaviorSpecDiscreteAction: BehaviorSpec {
+public struct BehaviorSpecDiscreteAction: BehaviorSpec {
     
-    typealias Scalar = Int32
+    public typealias Scalar = Int32
     
-    static func create(observationShapes: [[Int32]], actionShape: [Int32]) -> BehaviorSpecDiscreteAction {
+    public static func create(observationShapes: [[Int32]], actionShape: [Int32]) -> BehaviorSpecDiscreteAction {
         return BehaviorSpecDiscreteAction(observationShapes: observationShapes, actionShape: actionShape)
     }
     
-    init() {}
+    public init() {}
 
-    init(observationShapes: [[Int32]], actionShape: [Int32]) {
+    public init(observationShapes: [[Int32]], actionShape: [Int32]) {
         self.init(observationShapes: observationShapes, actionType: ActionType.DISCRETE, actionShape: actionShape)
     }
     
-    var isActionDiscrete: Bool = true
+    public var isActionDiscrete: Bool = true
     
-    var isActionContinuous: Bool = false
+    public var isActionContinuous: Bool = false
     
-    var observationShapes: [[Int32]] = []
+    public var observationShapes: [[Int32]] = []
     
-    var actionType: ActionType = ActionType.DISCRETE
+    public var actionType: ActionType = ActionType.DISCRETE
     
-    var actionShape: [Int32] = []
+    public var actionShape: [Int32] = []
     
-    var actionSize: Int {
+    public var actionSize: Int {
         return self.actionShape.count
     }
     
-    var discreteActionBranches: [Scalar]? {
+    public var discreteActionBranches: [Scalar]? {
         return Optional.some( self.actionShape )
     }
     
@@ -307,7 +307,7 @@ struct BehaviorSpecDiscreteAction: BehaviorSpec {
      - Parameters:
         - n_agents: The number of agents that will have actions generated
     */
-    func createRandomAction(nAgents: Int) -> Tensor<Int32> {
+    public func createRandomAction(nAgents: Int) -> Tensor<Int32> {
         let action = Tensor<Int32>(
             stacking: (0...self.actionSize-1).map{ i in
                 let branchSize = self.discreteActionBranches!
@@ -348,7 +348,7 @@ struct Defaults {
     static let _PORT_COMMAND_LINE_ARG = "--mlagents-port"
 }
 
-protocol BaseEnv {
+public protocol BaseEnv {
     
     associatedtype BehaviorSpecImpl: BehaviorSpec
     
@@ -417,48 +417,53 @@ protocol BaseEnv {
 
 extension BaseEnv {
     
-    var client: CommunicatorObjects_UnityToExternalProtoClient {
-        get { return props.client }
-        set { props.client = newValue }
+    public var port: Int {
+        get { return props.port }
+        set { props.port = newValue }
     }
+    
+    public var behaviorSpecs: BehaviorMapping {
+        get { return props.envSpecs }
+    }
+    
     var isFirstMessage: Bool {
         get { return props.isFirstMessage }
         set { props.isFirstMessage = newValue }
     }
+    
     var loaded: Bool {
         get { return props.loaded }
         set { props.loaded = newValue }
     }
+    
     var noGraphics: Bool {
         get { return props.noGraphics }
         set { props.noGraphics = newValue }
     }
+    
     var envSpecs: [String: BehaviorSpecImpl] {
         get { return props.envSpecs }
         set { props.envSpecs = newValue }
     }
+    
     var envState: [String: (DecisionSteps, TerminalSteps)] {
         get { return props.envState }
         set { props.envState = newValue }
     }
+    
     var envActions: [String: Tensor<BehaviorSpecImpl.Scalar>] {
         get { return props.envActions }
         set { props.envActions = newValue }
     }
+    
     var sideChannelManager: SideChannelManager {
         get { return props.sideChannelManager }
         set { props.sideChannelManager = newValue }
     }
+    
     var communicator: RpcCommunicator {
         get { return props.communicator }
         set { props.communicator = newValue }
-    }
-    var port: Int {
-        get { return props.port }
-        set { props.port = newValue }
-    }
-    var behaviorSpecs: BehaviorMapping {
-        get { return props.envSpecs }
     }
     
     static var logger: Logger {
@@ -513,7 +518,7 @@ extension BaseEnv {
         }
     }
     
-    init?(
+    public init?(
         filename: String?,
         workerId: Int = 0,
         basePort: Int?,
@@ -569,7 +574,7 @@ extension BaseEnv {
         }
     }
     
-    mutating func step() throws -> Void {
+    public mutating func step() throws -> Void {
         if self.isFirstMessage {
             return try self.reset()
         }
@@ -597,7 +602,7 @@ extension BaseEnv {
         }
     }
     
-    mutating func reset() throws -> Void {
+    public mutating func reset() throws -> Void {
         if self.loaded {
             if let outputs = self.communicator.exchange(inputs: self.generateResetInput()){
                 self.updateBehaviorSpecs(output: outputs)
@@ -614,7 +619,7 @@ extension BaseEnv {
     }
     
     /// Sends a shutdown signal to the unity environment, and closes the socket connection.
-    mutating func close() throws -> Void {
+    public mutating func close() throws -> Void {
         if self.loaded {
             self.loaded = false
             self.communicator.close()
@@ -623,7 +628,7 @@ extension BaseEnv {
         }
     }
     
-    mutating func setActions(behaviorName: BehaviorName, action: Tensor<BehaviorSpecImpl.Scalar>) throws -> Void {
+    public mutating func setActions(behaviorName: BehaviorName, action: Tensor<BehaviorSpecImpl.Scalar>) throws -> Void {
         try self.assertBehaviorExists(behaviorName: behaviorName)
         if !self.envState.keys.contains(behaviorName) {
             return
@@ -650,7 +655,7 @@ extension BaseEnv {
         }
     }
     
-    mutating func setActionForAgent(behaviorName: String, agentId: AgentId, action: Tensor<BehaviorSpecImpl.Scalar>) throws -> Void {
+    public mutating func setActionForAgent(behaviorName: String, agentId: AgentId, action: Tensor<BehaviorSpecImpl.Scalar>) throws -> Void {
         try self.assertBehaviorExists(behaviorName: behaviorName)
         if !self.envState.keys.contains(behaviorName){
             return
@@ -676,7 +681,7 @@ extension BaseEnv {
         }
     }
     
-    func getSteps(behaviorName: BehaviorName) throws -> (DecisionSteps, TerminalSteps)? {
+    public func getSteps(behaviorName: BehaviorName) throws -> (DecisionSteps, TerminalSteps)? {
         try self.assertBehaviorExists(behaviorName: behaviorName)
         return self.envState[behaviorName]
     }
@@ -781,7 +786,7 @@ struct TerminalStep {
  terminated. All Agents present in the TerminalSteps have ended their
  episode.
  */
-class TerminalSteps: Steps {
+public class TerminalSteps: Steps {
     
     var obs: [Tensor<Float32>]
     var reward: Tensor<Float32>
@@ -882,6 +887,6 @@ class TerminalSteps: Steps {
     }
 }
 
-enum ActionType {
+public enum ActionType {
     case DISCRETE, CONTINUOUS
 }

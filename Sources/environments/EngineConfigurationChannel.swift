@@ -1,6 +1,6 @@
 import Foundation
 
-struct EngineConfig {
+public struct EngineConfig {
     let width: Int32?
     let height: Int32?
     let qualityLevel: Int32?
@@ -11,14 +11,14 @@ struct EngineConfig {
     static let defaultConfig = EngineConfig(width: 80, height: 80, qualityLevel: 1, timeScale: 20.0, targetFrameRate: -1, captureFrameRate: 60)
 }
 
-class EngineConfigurationChannel: SideChannel {
+public class EngineConfigurationChannel: SideChannel {
     static let SCREEN_RESOLUTION: Int32 = 0
     static let QUALITY_LEVEL: Int32 = 1
     static let TIME_SCALE: Int32 = 2
     static let TARGET_FRAME_RATE: Int32 = 3
     static let CAPTURE_FRAME_RATE: Int32 = 4
 
-    init() {
+    public init() {
         super.init(channelId: UUID(uuidString: "e951342c-4f7e-11ea-b238-784f4387d1f7")!)
     }
 
@@ -28,7 +28,7 @@ class EngineConfigurationChannel: SideChannel {
             )
     }
 
-    func setConfigurationParameters(
+    public func setConfigurationParameters(
         width: Int32? = nil,
         height: Int32? = nil,
         qualityLevel: Int32? = nil,
@@ -79,7 +79,7 @@ class EngineConfigurationChannel: SideChannel {
         }
     }
 
-    func setConfiguration(_ config: EngineConfig) throws -> Void {
+    public func setConfiguration(_ config: EngineConfig) throws -> Void {
         try setConfigurationParameters(
             width: config.width,
             height: config.height,

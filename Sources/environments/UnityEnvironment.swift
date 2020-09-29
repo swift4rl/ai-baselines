@@ -10,12 +10,11 @@ import TensorFlow
 import GRPC
 import NIO
 
-struct Props<T: BehaviorSpec> {
+public struct Props<T: BehaviorSpec> {
     
     var isFirstMessage: Bool = true
     var communicator: RpcCommunicator
-    var client: CommunicatorObjects_UnityToExternalProtoClient
-    var sideChannelManager: SideChannelManager
+    var sideChannelManager: SideChannelManager?
     var loaded: Bool = false
     var noGraphics: Bool = false
     var envState: [String: (DecisionSteps, TerminalSteps)] = [:]
@@ -24,21 +23,42 @@ struct Props<T: BehaviorSpec> {
     var port: Int = 5004
 }
 
-class UnityContinousEnvironment: BaseEnv {
-    typealias BehaviorSpecImpl = BehaviorSpecContinousAction
-    var props: Props<BehaviorSpecContinousAction>
+open class UnityContinousEnvironment: BaseEnv {
+    public typealias BehaviorSpecImpl = BehaviorSpecContinousAction
+    public var props: Props<BehaviorSpecContinousAction>
     
-    init(communicator co: RpcCommunicator, client cl: CommunicatorObjects_UnityToExternalProtoClient, sideChannelManager scm: SideChannelManager) {
-        self.props = Props<BehaviorSpecContinousAction>(communicator: co, client: cl, sideChannelManager: scm)
+    public init?(
+        filename: String?,
+        workerId: Int = 0,
+        basePort: Int?,
+        seed: Int32 = 0,
+        noGraphics: Bool = false,
+        timeoutWait: Int = 60,
+        additionalArgs: [String]? = Optional.none,
+        sideChannels: [SideChannel]? = Optional.none,
+        logFolder: String? = Optional.none
+        ) throws {
+        self.props = Props<BehaviorSpecContinousAction>(communicator: RpcCommunicator(workerId: 0, port: 5004))
+        
     }
     
 }
 
-class UnityDiscreteEnvironment: BaseEnv {
-    typealias BehaviorSpecImpl = BehaviorSpecDiscreteAction
-    var props: Props<BehaviorSpecDiscreteAction>
+open class UnityDiscreteEnvironment: BaseEnv {
+    public typealias BehaviorSpecImpl = BehaviorSpecDiscreteAction
+    public var props: Props<BehaviorSpecDiscreteAction>
     
-    init(communicator co: RpcCommunicator, client cl: CommunicatorObjects_UnityToExternalProtoClient, sideChannelManager scm: SideChannelManager) {
-        self.props = Props<BehaviorSpecDiscreteAction>(communicator: co, client: cl, sideChannelManager: scm)
+    public init?(
+        filename: String?,
+        workerId: Int = 0,
+        basePort: Int?,
+        seed: Int32 = 0,
+        noGraphics: Bool = false,
+        timeoutWait: Int = 60,
+        additionalArgs: [String]? = Optional.none,
+        sideChannels: [SideChannel]? = Optional.none,
+        logFolder: String? = Optional.none
+        ) throws {
+        self.props = Props<BehaviorSpecDiscreteAction>(communicator: RpcCommunicator(workerId: 0, port: 5004))
     }
 }

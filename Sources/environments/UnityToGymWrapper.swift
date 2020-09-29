@@ -9,12 +9,12 @@ import Foundation
 import Logging
 import TensorFlow
 
-enum StepResult<T: TensorFlowNumeric>{
+public enum StepResult<T: TensorFlowNumeric>{
     case SingleStepResult(observation: Tensor<T>, reward: Float32, done: Bool, info:[String:AnyObject])
     case MultiStepResult(observation: [Tensor<T>], reward: Float32, done: Bool, info:[String:AnyObject])
 }
 
-protocol Space {
+public protocol Space {
 }
 
 struct Discrete: Space {
@@ -99,8 +99,10 @@ class ActionFlattener<T : Numeric & Hashable & Comparable & Strideable> {
     
 }
 
-class UnityToGymWrapper<Env: BaseEnv> {
-    typealias Scalar = Env.BehaviorSpecImpl.Scalar
+open class UnityToGymWrapper<Env: BaseEnv> {
+    public typealias Scalar = Env.BehaviorSpecImpl.Scalar
+    public var actionSpace: Space? = Optional.none
+    public var observationSpace: Space? = Optional.none
     
     var env: Env
     var uint8Visual: Bool = false
@@ -111,15 +113,13 @@ class UnityToGymWrapper<Env: BaseEnv> {
     var flattener: ActionFlattener<Scalar>? = Optional.none
     var name: BehaviorName? = Optional.none
     var groupSpec: Env.BehaviorSpecImpl? = Optional.none
-    var actionSpace: Space? = Optional.none
-    var observationSpace: Space? = Optional.none
     var visualObs: Tensor<Float32> = Tensor()
 
     static var logger: Logger {
         get { return Defaults.logger}
     }
 
-    init(unityEnv: Env, uint8Visual: Bool, flattenBranched: Bool, allowMultipleObs: Bool) throws {
+    public init(unityEnv: Env, uint8Visual: Bool, flattenBranched: Bool, allowMultipleObs: Bool) throws {
         self.env = unityEnv
         if !env.behaviorSpecs.isEmpty {
             try env.step()
@@ -229,7 +229,7 @@ class UnityToGymWrapper<Env: BaseEnv> {
      - Returns: observation (object/list): the initial observation of the
      space.
      */
-    func reset() throws-> StepResult<Float32> {
+    public func reset() throws-> StepResult<Float32> {
         try self.env.reset()
         guard let (decisionSteps, _) = try self.name.flatMap({try self.env.getSteps(behaviorName: $0)}) else {
             throw UnityException.UnityGymException(reason: """
@@ -257,7 +257,7 @@ class UnityToGymWrapper<Env: BaseEnv> {
         - info (dict): contains auxiliary diagnostic information.
      """
      */
-    func step(action: Tensor<Scalar>) throws -> StepResult<Float32>{
+    public func step(_ action: Tensor<Scalar>) throws -> StepResult<Float32>{
         var act = action
         if let flattener = self.flattener {
             act = flattener.lookupAction(action)

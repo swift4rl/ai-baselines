@@ -9,7 +9,7 @@ import Foundation
 import NIO
 import Logging
 
-class SideChannelManager {
+open class SideChannelManager {
     let logger = Logger(label: "environments.SideChannelManager")
     var sideChannelsDict: [UUID: SideChannel]
     
