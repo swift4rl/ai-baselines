@@ -456,7 +456,7 @@ extension BaseEnv {
         set { props.envActions = newValue }
     }
     
-    var sideChannelManager: SideChannelManager {
+    var sideChannelManager: SideChannelManager? {
         get { return props.sideChannelManager }
         set { props.sideChannelManager = newValue }
     }
@@ -700,7 +700,7 @@ extension BaseEnv {
                 rlIn.command = CommunicatorObjects_CommandProto.step
             }
         }
-        rlIn.sideChannel = self.sideChannelManager.generateSideChannelMessages()
+        rlIn.sideChannel = self.sideChannelManager!.generateSideChannelMessages()
         
         return self.wrapUnityInput(rlInput: rlIn)
     }
@@ -708,7 +708,7 @@ extension BaseEnv {
     func generateResetInput() -> CommunicatorObjects_UnityInputProto {
         var rlIn = CommunicatorObjects_UnityRLInputProto()
         rlIn.command = CommunicatorObjects_CommandProto.reset
-        rlIn.sideChannel = self.sideChannelManager.generateSideChannelMessages()
+        rlIn.sideChannel = self.sideChannelManager!.generateSideChannelMessages()
         return self.wrapUnityInput(rlInput: rlIn)
     }
     
@@ -738,7 +738,7 @@ extension BaseEnv {
                 }
             }
         }
-        try self.sideChannelManager.processSideChannelMessage(message: output.sideChannel)
+        try self.sideChannelManager!.processSideChannelMessage(message: output.sideChannel)
     }
     func sendAcademyParameters(initParameters: CommunicatorObjects_UnityRLInitializationInputProto) -> CommunicatorObjects_UnityOutputProto? {
         var inputs = CommunicatorObjects_UnityInputProto()

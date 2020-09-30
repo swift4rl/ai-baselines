@@ -15,29 +15,58 @@ public enum StepResult<T: TensorFlowNumeric>{
 }
 
 public protocol Space {
+    var shape: [Int32] { get set}
+    var n: Int32 { get set}
+}
+
+struct SpaceProps {
+    var shape: [Int32] = []
+    var n: Int32  = 0
 }
 
 struct Discrete: Space {
-    init(_ branch: Int32) {
-        
+    public var shape: [Int32]
+    public var n: Int32
+    init(_ n: Int32) {
+        self.shape = []
+        self.n = n
+        //TODO
     }
 }
 
 struct MultiDiscrete: Space {
+    var n: Int32 = 0
+    
+    public var shape: [Int32]
+    
     init(_ branches: [Int32]) {
-        
+        self.shape = branches
     }
 }
 
 struct Box<Scalar: TensorFlowScalar>: Space {
-    init(min: Tensor<Scalar>, max: Tensor<Scalar>) {
+    var n: Int32 = 0
+    
+    public var shape: [Int32]
+    
+    init(min: Tensor<Scalar>, max: Tensor<Scalar>, shape: [Int32]? = Optional.none) {
+        self.shape = shape ?? []
     }
-    init(min: Scalar, max: Scalar, shape: [Int32]?) {
+    init(min: Scalar, max: Scalar, shape: [Int32]? = Optional.none) {
+        self.shape = shape ?? []
+        //TODO
     }
 }
 
 struct Tuple: Space {
-    init(_ spaces: [Space]) {
+    var n: Int32 = 0
+    
+    var shape: [Int32]
+    
+    var spaces: [Space]
+    init(_ spaces: [Space], shape: [Int32]? = Optional.none) {
+        self.shape = shape ?? []
+        self.spaces = spaces
     }
 }
 

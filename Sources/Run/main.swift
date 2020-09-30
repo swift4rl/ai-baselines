@@ -20,14 +20,13 @@ let saved_unity_env_path = dirPath + "envs/YOUR-ENVIRONMENT.app"
 let channel = EngineConfigurationChannel()
 try channel.setConfigurationParameters(timeScale: 3.0)
 let unityEnv = try UnityDiscreteEnvironment(filename: "/opt/cartpole.app", basePort: 5004, sideChannels: [channel])
-let env = try UnityToGymWrapper(unityEnv: unityEnv!, uint8Visual: false, flattenBranched: false, allowMultipleObs: false)
+let env = try? UnityToGymWrapper(unityEnv: unityEnv!, uint8Visual: false, flattenBranched: false, allowMultipleObs: false)
 
-//let env = gym.make("CartPole-v0")
-let observationSize: Int = Int(env.observationSpace.shape[0])!
-let actionCount: Int = Int(env.actionSpace.n)!
+let observationSize: Int =  Int(env?.observationSpace?.shape[0] ?? 0)
+let actionCount: Int = Int(env?.actionSpace?.n ?? 0)
 
 // Hyperparameters
-/// The size of the hidden layer of the 2-layer actor network and critic network. The actor network
+/// The !size of the hidden layer of the 2-layer actor network and critic network. The actor network
 /// has the shape observationSize - hiddenSize - actionCount, and the critic network has the same
 /// shape but with a single output node.
 let hiddenSize: Int = 128
@@ -85,33 +84,35 @@ var episodeReturn: Float = 0
 var episodeReturns: [Float] = []
 var maxEpisodeReturn: Float = -1
 for episodeIndex in 1..<maxEpisodes+1 {
-    var state = env.reset()
-    var isDone: Bool
-    var reward: Float
-    for timeStep in 0..<maxTimesteps {
-        timestep += 1
-        (state, isDone, reward) = agent.step(env: env, state: state)
+    if case var .SingleStepResult(state, _, _, _) = try env?.reset() {
+        var isDone: Bool
+        var reward: Float
+        for timeStep in 0..<maxTimesteps {
+            timestep += 1
+            (state, isDone, reward) = try agent.step(env: env!, state: state)
 
-        if timestep % updateTimestep == 0 {
-            print("training...")
-            agent.update()
-            timestep = 0
+            if timestep % updateTimestep == 0 {
+                print("training...")
+                agent.update()
+                timestep = 0
+            }
+
+            episodeReturn += reward
+            if isDone {
+                episodeReturns.append(episodeReturn)
+                print(String(format: "Episode: %d | Return: %.2f | Timesteps: %d", episodeIndex, episodeReturn, timeStep))
+                tf.summary.scalar("episode_return", data: episodeReturn, step: episodeIndex)
+                tf.summary.scalar("episode_timesteps", data: timeStep, step: episodeIndex)
+                episodeReturn = 0
+                break
+            }
         }
-
-        episodeReturn += reward
-        if isDone {
-            episodeReturns.append(episodeReturn)
-            print(String(format: "Episode: %d | Return: %.2f | Timesteps: %d", episodeIndex, episodeReturn, timeStep))
-            tf.summary.scalar("episode_return", data: episodeReturn, step: episodeIndex)
-            tf.summary.scalar("episode_timesteps", data: timeStep, step: episodeIndex)
-            episodeReturn = 0
-            break
+        if episodeIndex % 10 == 0 {
+            let avgEpisodeReturns = episodeReturns.suffix(10).reduce(0, +) / 10.0
+            print(String(format: "Average returns of last 10 episodes: %.2f", avgEpisodeReturns))
         }
     }
-    if episodeIndex % 10 == 0 {
-        let avgEpisodeReturns = episodeReturns.suffix(10).reduce(0, +) / 10.0
-        print(String(format: "Average returns of last 10 episodes: %.2f", avgEpisodeReturns))
-    }
+        
 }
 
-env.close()
+//env.close()
