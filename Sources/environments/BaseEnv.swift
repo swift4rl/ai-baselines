@@ -356,6 +356,8 @@ public protocol BaseEnv {
     
     var props: Props<BehaviorSpecImpl> { get set }
     
+    init()
+    
     /// Signals the environment that it must move the simulation forward
     /// by one step.
     mutating func step() throws -> Void
@@ -517,7 +519,7 @@ extension BaseEnv {
             """)
         }
     }
-    
+
     public init?(
         filename: String?,
         workerId: Int = 0,
@@ -529,10 +531,9 @@ extension BaseEnv {
         sideChannels: [SideChannel]? = Optional.none,
         logFolder: String? = Optional.none
         ) throws {
-        try self.init(filename: filename, basePort: basePort)
+        self.init()
+        self.port = Defaults.DEFAULT_EDITOR_PORT
         if let filename = filename {
-            let task = Process()
-            task.executableURL = URL(fileURLWithPath: filename)
             var args: [String] = []
             if self.noGraphics {
                 args += ["-nographics", "-batchmode"]
@@ -544,16 +545,12 @@ extension BaseEnv {
             if let aArgs = additionalArgs {
                 args += aArgs
             }
-            task.arguments = args
-            let outputPipe = Pipe()
-            let errorPipe = Pipe()
-
-            task.standardOutput = outputPipe
-            task.standardError = errorPipe
-            try task.run()
+            try Process.run(URL(fileURLWithPath: filename), arguments: args, terminationHandler: { process in
+                print("Process terminated", process)
+                //TODO handle error
+            })
         }
         self.sideChannelManager = try SideChannelManager(sideChannels: sideChannels)
-        let port: Int = Defaults.DEFAULT_EDITOR_PORT
         self.communicator = RpcCommunicator(workerId: workerId, port: port)
         var rlInitParametersIn = CommunicatorObjects_UnityRLInitializationInputProto()
         rlInitParametersIn.seed = seed

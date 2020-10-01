@@ -13,13 +13,13 @@ import environments
 // Initialize Python. This comment is a hook for internal use, do not remove.
 let tf = Python.import("tensorflow")
 
-let dirPath = "/YOUR-PATH/ai-baselines/"
-let saved_unity_env_path = dirPath + "envs/YOUR-ENVIRONMENT.app"
+let dirPath = "/var/log/ai-baselines/"
+let saved_unity_env_path = dirPath + "envs/cartpole.app"
 
 
 let channel = EngineConfigurationChannel()
 try channel.setConfigurationParameters(timeScale: 3.0)
-let unityEnv = try UnityDiscreteEnvironment(filename: "/opt/cartpole.app", basePort: 5004, sideChannels: [channel])
+let unityEnv = try UnityDiscreteEnvironment(filename: "/Users/sercankaraoglu/Desktop/cartpole.app/Contents/MacOS/ML experiment", basePort: 5004, sideChannels: [channel])
 let env = try? UnityToGymWrapper(unityEnv: unityEnv!, uint8Visual: false, flattenBranched: false, allowMultipleObs: false)
 
 let observationSize: Int =  Int(env?.observationSpace?.shape[0] ?? 0)
@@ -49,7 +49,7 @@ let clipEpsilon: Float = 0.1
 let entropyCoefficient: Float = 0.0001
 /// Maximum number of episodes to train the agent. The training is terminated
 /// early if maximum score is achieved consecutively 10 times.
-let maxEpisodes: Int = 100000
+let maxEpisodes: Int = 10
 /// Maximum timestep per episode.
 let maxTimesteps: Int = 500
 /// The length of the trajectory segment. Denoted T in the PPO paper.
@@ -115,4 +115,4 @@ for episodeIndex in 1..<maxEpisodes+1 {
         
 }
 
-//env.close()
+try env!.close()

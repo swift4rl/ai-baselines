@@ -142,7 +142,7 @@ open class UnityToGymWrapper<Env: BaseEnv> {
     var flattener: ActionFlattener<Scalar>? = Optional.none
     var name: BehaviorName? = Optional.none
     var groupSpec: Env.BehaviorSpecImpl? = Optional.none
-    var visualObs: Tensor<Float32> = Tensor()
+    var visualObs: Tensor<Float32>? = Optional.none
 
     static var logger: Logger {
         get { return Defaults.logger}
@@ -313,6 +313,10 @@ open class UnityToGymWrapper<Env: BaseEnv> {
         } else {
             return self.singleStep(decisionStep)
         }
+    }
+    
+    public func close() throws -> Void {
+        try self.env.close()
     }
 
     func singleStep<StepsImpl: Steps>(_ info: StepsImpl) -> StepResult<Float32> {

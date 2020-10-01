@@ -27,19 +27,8 @@ open class UnityContinousEnvironment: BaseEnv {
     public typealias BehaviorSpecImpl = BehaviorSpecContinousAction
     public var props: Props<BehaviorSpecContinousAction>
     
-    public init?(
-        filename: String?,
-        workerId: Int = 0,
-        basePort: Int?,
-        seed: Int32 = 0,
-        noGraphics: Bool = false,
-        timeoutWait: Int = 60,
-        additionalArgs: [String]? = Optional.none,
-        sideChannels: [SideChannel]? = Optional.none,
-        logFolder: String? = Optional.none
-        ) throws {
+    required public init(){
         self.props = Props<BehaviorSpecContinousAction>(communicator: RpcCommunicator(workerId: 0, port: 5004))
-        
     }
     
 }
@@ -48,17 +37,7 @@ open class UnityDiscreteEnvironment: BaseEnv {
     public typealias BehaviorSpecImpl = BehaviorSpecDiscreteAction
     public var props: Props<BehaviorSpecDiscreteAction>
     
-    public init?(
-        filename: String?,
-        workerId: Int = 0,
-        basePort: Int?,
-        seed: Int32 = 0,
-        noGraphics: Bool = false,
-        timeoutWait: Int = 60,
-        additionalArgs: [String]? = Optional.none,
-        sideChannels: [SideChannel]? = Optional.none,
-        logFolder: String? = Optional.none
-        ) throws {
+    required public init() {
         self.props = Props<BehaviorSpecDiscreteAction>(communicator: RpcCommunicator(workerId: 0, port: 5004))
     }
 }
