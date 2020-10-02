@@ -68,11 +68,12 @@ open class PPOAgent {
         self.criticOptimizer = Adam(for: actorCritic.criticNetwork, learningRate: learningRate)
     }
 
-    open func step(env: UnityToGymWrapper<UnityDiscreteEnvironment>, state: Tensor<Float32>) throws -> (Tensor<Float32>, Bool, Float) {
+    open func step(env: UnityToGymWrapper, state: Tensor<Float32>) throws -> (Tensor<Float32>, Bool, Float) {
         let dist: Categorical<Int32> = oldActorCritic(state)
         let action: Tensor<Int32> = dist.sample()
         var ret: (Tensor<Float32>, Bool, Float)
-        if case let StepResult.SingleStepResult(observation, reward, done, _) = try env.step(action),
+        //TODO change this env.step(Tensor<Float32>(action)) with proper Float actions
+        if case let StepResult.SingleStepResult(observation, reward, done, _) = try env.step(Tensor<Float32>(action)),
            let act: Int32 = action.scalar {
             memory.append(
                 state: state,

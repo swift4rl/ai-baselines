@@ -128,12 +128,12 @@ class ActionFlattener<T : Numeric & Hashable & Comparable & Strideable> {
     
 }
 
-open class UnityToGymWrapper<Env: BaseEnv> {
-    public typealias Scalar = Env.BehaviorSpecImpl.Scalar
+open class UnityToGymWrapper {
+    public typealias Scalar = BehaviorSpecContinousAction.Scalar
     public var actionSpace: Space? = Optional.none
     public var observationSpace: Space? = Optional.none
-    
-    var env: Env
+    //TODO make this generic
+    var env: UnityContinousEnvironment? = Optional.none
     var uint8Visual: Bool = false
     var flattenBranched: Bool = false
     var allowMultipleObs: Bool = false
@@ -141,36 +141,38 @@ open class UnityToGymWrapper<Env: BaseEnv> {
     var previousDecisionStep: DecisionSteps? = Optional.none
     var flattener: ActionFlattener<Scalar>? = Optional.none
     var name: BehaviorName? = Optional.none
-    var groupSpec: Env.BehaviorSpecImpl? = Optional.none
+    var groupSpec: BehaviorSpecContinousAction? = Optional.none
     var visualObs: Tensor<Float32>? = Optional.none
 
     static var logger: Logger {
         get { return Defaults.logger}
     }
-
-    public init(unityEnv: Env, uint8Visual: Bool, flattenBranched: Bool, allowMultipleObs: Bool) throws {
-        self.env = unityEnv
-        if !env.behaviorSpecs.isEmpty {
-            try env.step()
+    public init?(env: UnityContinousEnvironment, uint8Visual: Bool, flattenBranched: Bool, allowMultipleObs: Bool) {
+        self.env = env
+        if let env = self.env, env.behaviorSpecs.isEmpty{
+            try? self.env?.step()
         }
         self.previousDecisionStep = Optional.none
         self.flattener = Optional.none
         self.gameOver = false
         self.allowMultipleObs = allowMultipleObs
 
-        if env.behaviorSpecs.count != 1 {
-            throw UnityException.UnityGymException(reason: """
+        if self.env?.behaviorSpecs.count != 1 {
+            Self.logger.error("""
             There can only be one behavior in a UnitEnvironment
-            if it is wrapped in a gym
+            if it is wrapped in a gym, env.behaviorSpecs =>
+            \(self.env?.behaviorSpecs)
             """)
+            return nil
         }
-        self.name = self.env.behaviorSpecs.keys.first
-        self.groupSpec = self.name.flatMap{self.env.behaviorSpecs[$0]}
+        self.name = self.env?.behaviorSpecs.keys.first
+        self.groupSpec = self.name.flatMap{self.env?.behaviorSpecs[$0]}
 
         if self.getNVisObs() == 0 && self.getVecObsSize() == 0 {
-            throw UnityException.UnityGymException(reason: """
+            Self.logger.error("""
                 There are no observations provided by the environment
             """)
+            return nil
         }
         
         if let nVisObs = self.getNVisObs(), !(nVisObs >= 1 && uint8Visual) {
@@ -194,18 +196,20 @@ open class UnityToGymWrapper<Env: BaseEnv> {
             )
         }
         // Check for number of agents in scene.
-        try self.env.reset()
-        guard let (decisionSteps, _) = try self.name.flatMap({try self.env.getSteps(behaviorName: $0)}) else {
-            throw UnityException.UnityGymException(reason: """
+        try? self.env?.reset()
+        guard let (decisionSteps, _) = try? self.name.flatMap({try self.env?.getSteps(behaviorName: $0)}) else {
+            Self.logger.error("""
                 There are no steps provided by the environment
             """)
+            return nil
         }
 
-        try Self.checkAgents(decisionSteps.len())
+        try? Self.checkAgents(decisionSteps.len())
         self.previousDecisionStep = decisionSteps
 
         guard let groupSpec = groupSpec else {
-            throw UnityException.UnityGymException(reason: "groupSpec is empty")
+            Self.logger.error("groupSpec is empty")
+            return nil
         }
         // Set action spaces
         if let groupSpec = groupSpec as? BehaviorSpecDiscreteAction,
@@ -259,8 +263,8 @@ open class UnityToGymWrapper<Env: BaseEnv> {
      space.
      */
     public func reset() throws-> StepResult<Float32> {
-        try self.env.reset()
-        guard let (decisionSteps, _) = try self.name.flatMap({try self.env.getSteps(behaviorName: $0)}) else {
+        try self.env?.reset()
+        guard let (decisionSteps, _) = try self.name.flatMap({try self.env?.getSteps(behaviorName: $0)}) else {
             throw UnityException.UnityGymException(reason: """
                 There are no steps provided by the environment
             """)
@@ -297,11 +301,11 @@ open class UnityToGymWrapper<Env: BaseEnv> {
         }
 
         if let n = self.name {
-            try self.env.setActions(behaviorName: n, action: act)
+            try self.env?.setActions(behaviorName: n, action: act)
         }
 
-        try self.env.step()
-        guard let (decisionStep, terminalStep) = try self.name.flatMap({try self.env.getSteps(behaviorName: $0)}) else {
+        try self.env?.step()
+        guard let (decisionStep, terminalStep) = try self.name.flatMap({try self.env?.getSteps(behaviorName: $0)}) else {
             throw UnityException.UnityGymException(reason: """
                 There are no steps provided by the environment
             """)
@@ -316,7 +320,7 @@ open class UnityToGymWrapper<Env: BaseEnv> {
     }
     
     public func close() throws -> Void {
-        try self.env.close()
+        try self.env?.close()
     }
 
     func singleStep<StepsImpl: Steps>(_ info: StepsImpl) -> StepResult<Float32> {

@@ -12,54 +12,52 @@ import Logging
 
 //TODO: consider GCD https://www.raywenderlich.com/5370-grand-central-dispatch-tutorial-for-swift-4-part-1-2
 //or https://gist.github.com/lattner/31ed37682ef1576b16bca1432ea9f782
-class UnityToExternalServicerImplementation : CommunicatorObjects_UnityToExternalProtoProvider, IteratorProtocol {
+class UnityToExternalServicerImplementation : CommunicatorObjects_UnityToExternalProtoProvider {
     
     typealias Element = (CommunicatorObjects_UnityMessageProto, EventLoopPromise<CommunicatorObjects_UnityMessageProto>)
+    var firstMsg: EventLoopPromise<Bool>?
     
-    init(firstMsg: EventLoopPromise<Bool>) {
+    init(_ firstMsg: EventLoopPromise<Bool>?) {
         self.firstMsg = firstMsg
     }
     
     fileprivate lazy var q = [(CommunicatorObjects_UnityMessageProto, EventLoopPromise<CommunicatorObjects_UnityMessageProto>)]()
-    var firstMsg: EventLoopPromise<Bool>? = Optional.none
     
-    func next() -> Element? {
+    func next(delete: Bool = true) -> Element? {
         if q.isEmpty {
             return nil
         } else {
             let first = q.first
-            q.remove(at: 0)
+            if(delete){
+                q.remove(at: 0)
+            }
             return first
         }
-    }
-    
-    
-    fileprivate func handle(_ context: StatusOnlyCallContext, _ request: CommunicatorObjects_UnityMessageProto) -> EventLoopFuture<CommunicatorObjects_UnityMessageProto> {
-        let p = context.eventLoop.makePromise(of: CommunicatorObjects_UnityMessageProto.self)
-        q.append((request,p))
-        firstMsg?.succeed(true)
-        firstMsg = Optional.none
-        return p.futureResult
+        
     }
     
     func initialize(request: CommunicatorObjects_UnityMessageProto, context: StatusOnlyCallContext) ->
     EventLoopFuture<CommunicatorObjects_UnityMessageProto> {
-        firstMsg?.succeed(true)
-        firstMsg = Optional.none
-        return handle(context, request)
+        print("rpc --->> initalize --->> \(request.debugDescription))")
+        let p = context.eventLoop.makePromise(of: CommunicatorObjects_UnityMessageProto.self)
+        q.append((request,p))
+        self.firstMsg?.succeed(true)
+        self.firstMsg = Optional.none
+        return p.futureResult
     }
     
     func exchange(request: CommunicatorObjects_UnityMessageProto, context: StatusOnlyCallContext) -> EventLoopFuture<CommunicatorObjects_UnityMessageProto> {
+        print("rpc --->> exchange --->> \(request.debugDescription))")
         let p = context.eventLoop.makePromise(of: CommunicatorObjects_UnityMessageProto.self)
         q.append((request,p))
-        firstMsg?.succeed(true)
-        firstMsg = Optional.none
+        self.firstMsg?.succeed(true)
+        self.firstMsg = Optional.none
         return p.futureResult
     }
 }
 
 public class RpcCommunicator: Communicator {
-   
+    
     var workerId: Int = 0
     var host: String = "0.0.0.0"
     var port: Int = 5004
@@ -70,10 +68,11 @@ public class RpcCommunicator: Communicator {
     var server: Server?
     var group: MultiThreadedEventLoopGroup
     
-    public required init(workerId: Int=0, port: Int=5005, group: MultiThreadedEventLoopGroup =  MultiThreadedEventLoopGroup(numberOfThreads: System.coreCount)) {
+    public required init(workerId: Int=0, port: Int=5005, group: MultiThreadedEventLoopGroup =  MultiThreadedEventLoopGroup(numberOfThreads: 1)) {
         self.workerId = workerId
         self.port = port + workerId
-        self.provider = UnityToExternalServicerImplementation(firstMsg: group.next().makePromise(of:Bool.self))
+        self.provider = UnityToExternalServicerImplementation(group.next().makePromise())
+        
         // Start the server and print its address once it has started.
         let s: EventLoopFuture<Server> = Server.insecure(group: group)
             .withServiceProviders([provider])
@@ -87,45 +86,56 @@ public class RpcCommunicator: Communicator {
             self.isOpen = true
             print("server started on port \(address!.port!)")
         }
+        // TODO handle this properly
+        _ = try? s.wait()
         
-        _ = s.flatMap {
-            $0.onClose
-        }.map{
-            self.isOpen = false
-        }
-       
     }
     
     func initialize(inputs: CommunicatorObjects_UnityInputProto) -> Optional<CommunicatorObjects_UnityOutputProto> {
-        print("rpc --->> initalize --->>")
+        
         var message = CommunicatorObjects_UnityMessageProto()
         message.header.status=200
         message.unityInput = inputs
-        do {
-            let res = try self.provider.firstMsg?.futureResult.wait()
-            print("init \(res)")
-        }catch {
-            print("error")
+        var m = self.provider.next()
+        while m == nil {
+            sleep(1)
+            m = self.provider.next()
         }
-        let n = provider.next()
-        return n?.0.unityOutput
+        _ = try? self.provider.firstMsg?.futureResult.wait()
+        print("model --->> initalize --->> \(message.debugDescription)")
+        m?.1.succeed(message)
+        var n = self.provider.next(delete: false)
+        while n == nil {
+            sleep(1)
+            n = self.provider.next(delete: false)
+        }
+        return m?.0.unityOutput
     }
     
     func exchange(inputs: CommunicatorObjects_UnityInputProto) -> Optional<CommunicatorObjects_UnityOutputProto> {
         var message = CommunicatorObjects_UnityMessageProto()
-        print("rpc --->> exchange -->>")
+        print("model --->> exchange -->>")
         message.header.status = 200
         message.unityInput = inputs
-        let m = self.provider.next()
-        let request = m?.0
-        let promise = m?.1
-        promise?.succeed(message)
-        if request?.header.status != 200{
+        var m = self.provider.next()
+        while m == nil {
+            sleep(1)
+            m = self.provider.next()
+        }
+        print("model --->> initalize --->> \(message.debugDescription))")
+        m?.1.succeed(message)
+        
+        m = self.provider.next(delete: false)
+        while m == nil {
+            sleep(1)
+            m = self.provider.next(delete: false)
+        }
+        if m?.0.header.status != 200{
             return Optional.none
         }
-        return request?.unityOutput
+        return m?.0.unityOutput
     }
-
+    
     func close() {
         if self.isOpen{
             var message = CommunicatorObjects_UnityMessageProto()

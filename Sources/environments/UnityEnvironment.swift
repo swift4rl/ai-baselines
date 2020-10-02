@@ -10,34 +10,28 @@ import TensorFlow
 import GRPC
 import NIO
 
-public struct Props<T: BehaviorSpec> {
+public class Props {
     
     var isFirstMessage: Bool = true
-    var communicator: RpcCommunicator
-    var sideChannelManager: SideChannelManager?
+    var communicator: RpcCommunicator? = Optional.none
+    var sideChannelManager: SideChannelManager? = Optional.none
     var loaded: Bool = false
     var noGraphics: Bool = false
     var envState: [String: (DecisionSteps, TerminalSteps)] = [:]
-    var envSpecs: [String: T] = [:]
-    var envActions: [String: Tensor<T.Scalar>] = [:]
+    var envSpecs: [String: BehaviorSpecContinousAction] = [:]
+    var envActions: [String: Tensor<BehaviorSpecContinousAction.Scalar>] = [:]
     var port: Int = 5004
 }
 
 open class UnityContinousEnvironment: BaseEnv {
-    public typealias BehaviorSpecImpl = BehaviorSpecContinousAction
-    public var props: Props<BehaviorSpecContinousAction>
-    
-    required public init(){
-        self.props = Props<BehaviorSpecContinousAction>(communicator: RpcCommunicator(workerId: 0, port: 5004))
-    }
-    
+    //public typealias BehaviorSpecImpl = BehaviorSpecContinousAction
 }
-
-open class UnityDiscreteEnvironment: BaseEnv {
-    public typealias BehaviorSpecImpl = BehaviorSpecDiscreteAction
-    public var props: Props<BehaviorSpecDiscreteAction>
-    
-    required public init() {
-        self.props = Props<BehaviorSpecDiscreteAction>(communicator: RpcCommunicator(workerId: 0, port: 5004))
-    }
-}
+//
+//open class UnityDiscreteEnvironment: BaseEnv {
+//    public typealias BehaviorSpecImpl = BehaviorSpecDiscreteAction
+//    public var props: Props<BehaviorSpecDiscreteAction>
+//
+//    required public init() {
+//        self.props = Props<BehaviorSpecDiscreteAction>()
+//    }
+//}

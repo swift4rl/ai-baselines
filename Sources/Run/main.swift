@@ -19,11 +19,13 @@ let saved_unity_env_path = dirPath + "envs/cartpole.app"
 
 let channel = EngineConfigurationChannel()
 try channel.setConfigurationParameters(timeScale: 3.0)
-let unityEnv = try UnityDiscreteEnvironment(filename: "/Users/sercankaraoglu/Desktop/cartpole.app/Contents/MacOS/ML experiment", basePort: 5004, sideChannels: [channel])
-let env = try? UnityToGymWrapper(unityEnv: unityEnv!, uint8Visual: false, flattenBranched: false, allowMultipleObs: false)
+let unityEnv = UnityContinousEnvironment(filename: "/Users/sercankaraoglu/Desktop/cartpole.app/Contents/MacOS/ML experiment", basePort: 5004, sideChannels: [])
+guard let env = UnityToGymWrapper(env: unityEnv, uint8Visual: false, flattenBranched: false, allowMultipleObs: false) else {
+    throw UnityException.UnityGymException(reason: "failed to create unitygymwrapper")
+}
 
-let observationSize: Int =  Int(env?.observationSpace?.shape[0] ?? 0)
-let actionCount: Int = Int(env?.actionSpace?.n ?? 0)
+let observationSize: Int =  Int(env.observationSpace?.shape[0] ?? 0)
+let actionCount: Int = Int(env.actionSpace?.n ?? 0)
 
 // Hyperparameters
 /// The !size of the hidden layer of the 2-layer actor network and critic network. The actor network
@@ -84,12 +86,12 @@ var episodeReturn: Float = 0
 var episodeReturns: [Float] = []
 var maxEpisodeReturn: Float = -1
 for episodeIndex in 1..<maxEpisodes+1 {
-    if case var .SingleStepResult(state, _, _, _) = try env?.reset() {
+    if case var .SingleStepResult(state, _, _, _) = try env.reset() {
         var isDone: Bool
         var reward: Float
         for timeStep in 0..<maxTimesteps {
             timestep += 1
-            (state, isDone, reward) = try agent.step(env: env!, state: state)
+            (state, isDone, reward) = try agent.step(env: env, state: state)
 
             if timestep % updateTimestep == 0 {
                 print("training...")
@@ -115,4 +117,4 @@ for episodeIndex in 1..<maxEpisodes+1 {
         
 }
 
-try env!.close()
+try env.close()

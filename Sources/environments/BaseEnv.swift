@@ -65,13 +65,13 @@ public class DecisionSteps: Steps {
     this DecisionSteps.
     */
     var agentIdToIndex: [AgentId: Int] {
-        if self._agentIdToIndex == Optional.none {
-            self._agentIdToIndex = [:]
-            for (aIdx, aId) in self.agentId.enumerated(){
-                self._agentIdToIndex![aId] = aIdx
+        if _agentIdToIndex == Optional.none {
+            _agentIdToIndex = [:]
+            for (aIdx, aId) in agentId.enumerated(){
+                _agentIdToIndex![aId] = aIdx
             }
         }
-        return self._agentIdToIndex!
+        return _agentIdToIndex!
     }
     /**
      - Parameters:
@@ -99,7 +99,7 @@ public class DecisionSteps: Steps {
     }
 
     func len() -> Int {
-        return self.agentId.count
+        return agentId.count
     }
 
     /**
@@ -113,26 +113,26 @@ public class DecisionSteps: Steps {
         }
         let agentIndex = _agentIdToIndex![agentId]!
         var agentObs: [Tensor<Float32>] = []
-        for batchedObs in self.obs {
+        for batchedObs in obs {
             agentObs.append(batchedObs[agentIndex])
         }
         var _agentMask: [Tensor<Bool>] = []
-        if self.actionMask != Optional.none {
+        if actionMask != Optional.none {
             _agentMask = []
-            for mask in self.actionMask! {
+            for mask in actionMask! {
                 _agentMask.append(mask[agentIndex])
             }
         }
         return DecisionStep(
             obs: agentObs,
-            reward: self.reward.scalars[agentIndex],
+            reward: reward.scalars[agentIndex],
             agentId: agentId,
             actionMask: _agentMask
         )
     }
     
     func iter() -> IndexingIterator<[AgentId]>{
-        return self.agentId.makeIterator()
+        return agentId.makeIterator()
     }
 
     /**
@@ -348,25 +348,33 @@ struct Defaults {
     static let _PORT_COMMAND_LINE_ARG = "--mlagents-port"
 }
 
-public protocol BaseEnv {
+public protocol UnityEnv {
     
-    associatedtype BehaviorSpecImpl: BehaviorSpec
+    typealias BehaviorMapping = [BehaviorName: BehaviorSpecContinousAction]
     
-    typealias BehaviorMapping = [BehaviorName: BehaviorSpecImpl]
-    
-    var props: Props<BehaviorSpecImpl> { get set }
+    var props: Props { get set }
     
     init()
+    init(filename: String?,
+        workerId: Int ,
+        basePort: Int?,
+        seed: Int32,
+        noGraphics: Bool,
+        timeoutWait: Int,
+        additionalArgs: [String]?,
+        sideChannels: [SideChannel]?,
+        logFolder: String?
+        )
     
     /// Signals the environment that it must move the simulation forward
     /// by one step.
-    mutating func step() throws -> Void
+    func step() throws -> Void
     
     /// Signals the environment that it must reset the simulation
-    mutating func reset() throws -> Void
+    func reset() throws -> Void
     
     /// Signals the environment that it must close.
-    mutating func close() throws -> Void
+    func close() throws -> Void
     
     /**
      Returns a Mapping from behavior names to behavior specs.
@@ -386,7 +394,7 @@ public protocol BaseEnv {
         - action: A two dimensional Tensor corresponding to the action
      (either int or float)
      */
-    mutating func setActions(behaviorName: BehaviorName, action: Tensor<BehaviorSpecImpl.Scalar>) throws -> Void
+    func setActions(behaviorName: BehaviorName, action: Tensor<BehaviorSpecContinousAction.Scalar>) throws -> Void
     
     /**
     Sets the action for one of the agents in the simulation for the next
@@ -397,7 +405,7 @@ public protocol BaseEnv {
         - action: A one dimensional Tensor corresponding to the action
     (either int or float)
     */
-    mutating func setActionForAgent(behaviorName: String, agentId: AgentId, action: Tensor<BehaviorSpecImpl.Scalar>) throws -> Void
+    func setActionForAgent(behaviorName: String, agentId: AgentId, action: Tensor<BehaviorSpecContinousAction.Scalar>) throws -> Void
         
 
     /**
@@ -417,7 +425,12 @@ public protocol BaseEnv {
 
 }
 
-extension BaseEnv {
+open class BaseEnv: UnityEnv {
+    public var props: Props
+    
+    required public init(){
+        self.props = Props()
+    }
     
     public var port: Int {
         get { return props.port }
@@ -443,7 +456,7 @@ extension BaseEnv {
         set { props.noGraphics = newValue }
     }
     
-    var envSpecs: [String: BehaviorSpecImpl] {
+    var envSpecs: [String: BehaviorSpecContinousAction] {
         get { return props.envSpecs }
         set { props.envSpecs = newValue }
     }
@@ -453,7 +466,7 @@ extension BaseEnv {
         set { props.envState = newValue }
     }
     
-    var envActions: [String: Tensor<BehaviorSpecImpl.Scalar>] {
+    var envActions: [String: Tensor<BehaviorSpecContinousAction.Scalar>] {
         get { return props.envActions }
         set { props.envActions = newValue }
     }
@@ -463,7 +476,7 @@ extension BaseEnv {
         set { props.sideChannelManager = newValue }
     }
     
-    var communicator: RpcCommunicator {
+    var communicator: RpcCommunicator? {
         get { return props.communicator }
         set { props.communicator = newValue }
     }
@@ -520,7 +533,7 @@ extension BaseEnv {
         }
     }
 
-    public init?(
+    required public convenience init(
         filename: String?,
         workerId: Int = 0,
         basePort: Int?,
@@ -530,83 +543,84 @@ extension BaseEnv {
         additionalArgs: [String]? = Optional.none,
         sideChannels: [SideChannel]? = Optional.none,
         logFolder: String? = Optional.none
-        ) throws {
+        ) {
         self.init()
-        self.port = Defaults.DEFAULT_EDITOR_PORT
+        props.port = Defaults.DEFAULT_EDITOR_PORT
+        props.sideChannelManager = try? SideChannelManager(sideChannels: sideChannels)
+        props.communicator = RpcCommunicator(workerId: workerId, port: port)
         if let filename = filename {
             var args: [String] = []
-            if self.noGraphics {
+            if props.noGraphics {
                 args += ["-nographics", "-batchmode"]
             }
-            args += [Defaults._PORT_COMMAND_LINE_ARG, String(self.port)]
+            args += [Defaults._PORT_COMMAND_LINE_ARG, String(props.port)]
             if let logFolder = logFolder {
                 args += ["-logFile", "\(logFolder)/Player-\(workerId).log"]
             }
             if let aArgs = additionalArgs {
                 args += aArgs
             }
-            try Process.run(URL(fileURLWithPath: filename), arguments: args, terminationHandler: { process in
+            _ = try? Process.run(URL(fileURLWithPath: filename), arguments: args, terminationHandler: { process in
                 print("Process terminated", process)
                 //TODO handle error
             })
         }
-        self.sideChannelManager = try SideChannelManager(sideChannels: sideChannels)
-        self.communicator = RpcCommunicator(workerId: workerId, port: port)
+        props.loaded = true
         var rlInitParametersIn = CommunicatorObjects_UnityRLInitializationInputProto()
         rlInitParametersIn.seed = seed
         rlInitParametersIn.communicationVersion = Defaults.API_VERSION
         rlInitParametersIn.packageVersion = "0.20.0"
         rlInitParametersIn.capabilities = Self.getCapabilitiesProto()
-        let acaOutput = self.sendAcademyParameters(initParameters: rlInitParametersIn)
+        let acaOutput = sendAcademyParameters(initParameters: rlInitParametersIn)
         let acaParams = acaOutput?.rlInitializationOutput
         
         if let unityComVer = acaParams?.communicationVersion,
            let unityPackageVersion = acaParams?.packageVersion,
            !Self.checkCommunicationCompatibility(unityComVer: unityComVer, swiftApiVersion: Defaults.API_VERSION, unityPackageVersion: unityPackageVersion){
-            try Self.raiseVersionException(unityComVer: unityComVer)
+            try? Self.raiseVersionException(unityComVer: unityComVer)
         }
-        self.isFirstMessage = true
+        props.isFirstMessage = true
         if let output = acaOutput {
-            self.updateBehaviorSpecs(output: output)
+            updateBehaviorSpecs(output: output)
         }
     }
     
-    public mutating func step() throws -> Void {
-        if self.isFirstMessage {
-            return try self.reset()
+    public func step() throws -> Void {
+        if props.isFirstMessage {
+            return try reset()
         }
-        if !self.loaded {
+        if !props.loaded {
             throw UnityException.UnityEnvironmentException(reason: "No Unity environment is loaded.")
         }
-        for groupName in self.envSpecs.keys {
-            if !(self.envActions.keys.contains(groupName)) {
+        for groupName in props.envSpecs.keys {
+            if !(props.envActions.keys.contains(groupName)) {
                 var nAgents = 0
-                if self.envState.keys.contains(groupName){
-                    nAgents = self.envState[groupName]?.0.len() ?? 0
+                if props.envState.keys.contains(groupName){
+                    nAgents = envState[groupName]?.0.len() ?? 0
                 }
-                self.envActions[groupName] = self.envSpecs[groupName]?.createEmptyAction(nAgents: nAgents)
+                props.envActions[groupName] = props.envSpecs[groupName]?.createEmptyAction(nAgents: nAgents)
             }
         }
-        let stepInput = self.generateStepInput(vectorAction: self.envActions)
+        let stepInput = generateStepInput(vectorAction: props.envActions)
         // todo: measure time here
-        if let outputs = self.communicator.exchange(inputs: stepInput) {
-            self.updateBehaviorSpecs(output: outputs)
+        if let outputs = communicator?.exchange(inputs: stepInput) {
+            updateBehaviorSpecs(output: outputs)
             let rlOutput = outputs.rlOutput
-            try self.updateState(output: rlOutput)
-            self.envActions.removeAll()
+            try updateState(output: rlOutput)
+            props.envActions.removeAll()
         } else {
             throw UnityException.UnityCommunicatorStoppedException(reason: "Communicator has exited.")
         }
     }
     
-    public mutating func reset() throws -> Void {
-        if self.loaded {
-            if let outputs = self.communicator.exchange(inputs: self.generateResetInput()){
-                self.updateBehaviorSpecs(output: outputs)
+    public func reset() throws -> Void {
+        if loaded {
+            if let outputs = communicator?.exchange(inputs: generateResetInput()){
+                updateBehaviorSpecs(output: outputs)
                 let rlOutput = outputs.rlOutput
-                try self.updateState(output: rlOutput)
-                self.isFirstMessage = false
-                self.envActions.removeAll()
+                try updateState(output: rlOutput)
+                props.isFirstMessage = false
+                props.envActions.removeAll()
             } else {
                 throw UnityException.UnityCommunicatorStoppedException(reason: "Communicator has exited.")
             }
@@ -616,21 +630,21 @@ extension BaseEnv {
     }
     
     /// Sends a shutdown signal to the unity environment, and closes the socket connection.
-    public mutating func close() throws -> Void {
-        if self.loaded {
-            self.loaded = false
-            self.communicator.close()
+    public func close() throws -> Void {
+        if loaded {
+            props.loaded = false
+            communicator?.close()
         } else{
             throw UnityException.UnityEnvironmentException(reason: "No Unity environment is loaded.")
         }
     }
     
-    public mutating func setActions(behaviorName: BehaviorName, action: Tensor<BehaviorSpecImpl.Scalar>) throws -> Void {
-        try self.assertBehaviorExists(behaviorName: behaviorName)
-        if !self.envState.keys.contains(behaviorName) {
+    public func setActions(behaviorName: BehaviorName, action: Tensor<BehaviorSpecContinousAction.Scalar>) throws -> Void {
+        try assertBehaviorExists(behaviorName: behaviorName)
+        if !props.envState.keys.contains(behaviorName) {
             return
         }
-        if let actionSize = self.envSpecs[behaviorName]?.actionSize, let decisionStepLen = self.envState[behaviorName]?.0.len(){
+        if let actionSize = envSpecs[behaviorName]?.actionSize, let decisionStepLen = envState[behaviorName]?.0.len(){
             let expectedShape = TensorShape(decisionStepLen, actionSize)
             if action.shape != expectedShape{
                 throw UnityException.UnityActionException(reason: """
@@ -639,12 +653,12 @@ extension BaseEnv {
                     dimension \(action.shape)
                     """)
             }
-            self.envActions[behaviorName] = action
+            props.envActions[behaviorName] = action
         }
     }
     
     func assertBehaviorExists(behaviorName: String) throws -> Void {
-        if !self.envSpecs.keys.contains(behaviorName) {
+        if !envSpecs.keys.contains(behaviorName) {
             throw UnityException.UnityActionException(reason: """
                 The group \(behaviorName) does not correspond to an existing agent group
                 in the environment
@@ -652,12 +666,12 @@ extension BaseEnv {
         }
     }
     
-    public mutating func setActionForAgent(behaviorName: String, agentId: AgentId, action: Tensor<BehaviorSpecImpl.Scalar>) throws -> Void {
-        try self.assertBehaviorExists(behaviorName: behaviorName)
-        if !self.envState.keys.contains(behaviorName){
+    public func setActionForAgent(behaviorName: String, agentId: AgentId, action: Tensor<BehaviorSpecContinousAction.Scalar>) throws -> Void {
+        try assertBehaviorExists(behaviorName: behaviorName)
+        if !envState.keys.contains(behaviorName){
             return
         }
-        if let spec = self.envSpecs[behaviorName]{
+        if let spec = envSpecs[behaviorName]{
             let expectedShape = TensorShape([ spec.actionSize ])
             if action.shape != expectedShape {
                 throw UnityException.UnityActionException(reason: """
@@ -667,26 +681,26 @@ extension BaseEnv {
                 )
             }
 
-            if  !self.envActions.keys.contains(behaviorName), let nAgents = self.envState[behaviorName]?.0.len() {
-                self.envActions[behaviorName] = spec.createEmptyAction(nAgents: nAgents)
+            if  !envActions.keys.contains(behaviorName), let nAgents = envState[behaviorName]?.0.len() {
+                props.envActions[behaviorName] = spec.createEmptyAction(nAgents: nAgents)
             }
             
-            guard let index = self.envState[behaviorName]?.0.agentId.firstIndex(where: {$0 == agentId}) else {
+            guard let index = envState[behaviorName]?.0.agentId.firstIndex(where: {$0 == agentId}) else {
                 throw UnityException.UnityEnvironmentException(reason: "agent_id \(agentId) is did not request a decision at the previous step")
             }
-            self.envActions[behaviorName]?[index] = action
+            props.envActions[behaviorName]?[index] = action
         }
     }
     
     public func getSteps(behaviorName: BehaviorName) throws -> (DecisionSteps, TerminalSteps)? {
-        try self.assertBehaviorExists(behaviorName: behaviorName)
-        return self.envState[behaviorName]
+        try assertBehaviorExists(behaviorName: behaviorName)
+        return envState[behaviorName]
     }
     
-    func generateStepInput(vectorAction: [String: Tensor<BehaviorSpecImpl.Scalar>]) -> CommunicatorObjects_UnityInputProto {
+    func generateStepInput(vectorAction: [String: Tensor<BehaviorSpecContinousAction.Scalar>]) -> CommunicatorObjects_UnityInputProto {
         var rlIn = CommunicatorObjects_UnityRLInputProto()
         for b in vectorAction.keys {
-            let nAgents = self.envState[b]?.0.len() ?? 0
+            let nAgents = envState[b]?.0.len() ?? 0
             if nAgents == 0 {
                 continue
             }
@@ -697,50 +711,57 @@ extension BaseEnv {
                 rlIn.command = CommunicatorObjects_CommandProto.step
             }
         }
-        rlIn.sideChannel = self.sideChannelManager!.generateSideChannelMessages()
+        if let sideChannel = sideChannelManager?.generateSideChannelMessages(){
+            rlIn.sideChannel = sideChannel
+        }
         
-        return self.wrapUnityInput(rlInput: rlIn)
+        return wrapUnityInput(rlInput: rlIn)
     }
     
     func generateResetInput() -> CommunicatorObjects_UnityInputProto {
         var rlIn = CommunicatorObjects_UnityRLInputProto()
         rlIn.command = CommunicatorObjects_CommandProto.reset
-        rlIn.sideChannel = self.sideChannelManager!.generateSideChannelMessages()
-        return self.wrapUnityInput(rlInput: rlIn)
+        if let sideChannel = sideChannelManager?.generateSideChannelMessages() {
+            rlIn.sideChannel = sideChannel
+        }
+        return wrapUnityInput(rlInput: rlIn)
     }
     
-    mutating func updateBehaviorSpecs(output: CommunicatorObjects_UnityOutputProto) -> Void {
+    func updateBehaviorSpecs(output: CommunicatorObjects_UnityOutputProto) -> Void {
         let initOutput = output.rlInitializationOutput
+        if(initOutput.brainParameters.count==0) {
+            return
+        }
         for brainParam in initOutput.brainParameters {
             let agentInfos = output.rlOutput.agentInfos[brainParam.brainName]
             if let value = agentInfos?.value{
                 let agent = value[0]
-                let newSpec: BehaviorSpecImpl = behaviorSpecFromProto(brainParamProto: brainParam, agentInfo: agent)
-                self.envSpecs[brainParam.brainName] = newSpec
+                let newSpec: BehaviorSpecContinousAction = behaviorSpecFromProto(brainParamProto: brainParam, agentInfo: agent)
+                props.envSpecs[brainParam.brainName] = newSpec
                 Self.logger.info("Connected new brain:\n \(brainParam.brainName)")
             }
         }
     }
     
     /// Collects experience information from all external brains in environment at current step.
-    mutating func updateState(output: CommunicatorObjects_UnityRLOutputProto) throws -> Void {
-        for brainName in self.envSpecs.keys {
+    func updateState(output: CommunicatorObjects_UnityRLOutputProto) throws -> Void {
+        for brainName in envSpecs.keys {
             if output.agentInfos.keys.contains(brainName) {
-                if let agentInfo = output.agentInfos[brainName], let envSpec = self.envSpecs[brainName] {
-                    self.envState[brainName] = try stepsFromProto(agentInfoList: agentInfo.value, behaviorSpec: envSpec)
+                if let agentInfo = output.agentInfos[brainName], let envSpec = envSpecs[brainName] {
+                    props.envState[brainName] = try stepsFromProto(agentInfoList: agentInfo.value, behaviorSpec: envSpec)
                 }
             } else {
-                if let envSpec =  self.envSpecs[brainName] {
-                    self.envState[brainName] = (DecisionSteps.empty(spec: envSpec), TerminalSteps.empty(spec: envSpec))
+                if let envSpec =  envSpecs[brainName] {
+                    props.envState[brainName] = (DecisionSteps.empty(spec: envSpec), TerminalSteps.empty(spec: envSpec))
                 }
             }
         }
-        try self.sideChannelManager!.processSideChannelMessage(message: output.sideChannel)
+        try sideChannelManager?.processSideChannelMessage(message: output.sideChannel)
     }
     func sendAcademyParameters(initParameters: CommunicatorObjects_UnityRLInitializationInputProto) -> CommunicatorObjects_UnityOutputProto? {
         var inputs = CommunicatorObjects_UnityInputProto()
         inputs.rlInitializationInput = initParameters
-        return self.communicator.initialize(inputs: inputs)
+        return communicator?.initialize(inputs: inputs)
     }
     func wrapUnityInput(rlInput: CommunicatorObjects_UnityRLInputProto) -> CommunicatorObjects_UnityInputProto {
         var result = CommunicatorObjects_UnityInputProto()
@@ -799,10 +820,10 @@ public class TerminalSteps: Steps {
             if _agentIdToIndex == Optional<[AgentId: Int]>.none {
                 _agentIdToIndex = Optional<[AgentId: Int]>.some([:])
             }
-            for (aIdx, aId) in self.agentId.enumerated() {
-                self._agentIdToIndex![aId] = aIdx
+            for (aIdx, aId) in agentId.enumerated() {
+                _agentIdToIndex![aId] = aIdx
             }
-            return self._agentIdToIndex!
+            return _agentIdToIndex!
         }
     }
     /**
@@ -842,22 +863,22 @@ public class TerminalSteps: Steps {
         }
         let agentIndex = _agentIdToIndex![agentId]!
         var agentObs: [Tensor<Float32>] = []
-        for batchedObs in self.obs {
+        for batchedObs in obs {
             agentObs.append(batchedObs[agentIndex])
         }
         
         return Optional.some(
             TerminalStep(
                 obs: agentObs,
-                reward: self.reward.scalars[agentIndex],
-                interrupted: self.interrupted.scalars[agentIndex],
+                reward: reward.scalars[agentIndex],
+                interrupted: interrupted.scalars[agentIndex],
                 agentId: agentId
             )
         )
     }
 
     func iter() -> IndexingIterator<[AgentId]>{
-        return self.agentId.makeIterator()
+        return agentId.makeIterator()
     }
 
     /**

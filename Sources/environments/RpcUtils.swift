@@ -121,7 +121,8 @@ func processVectorObservation(
     if agentInfoList.count == 0 {
         return Tensor<Float32>(repeating:0, shape: TensorShape(Int(shape[0])))
     }
-    let obs = Tensor<Float>(stacking: agentInfoList.map({Tensor<Float>($0.observations[obsIndex].floatData.data)}) )
+    //TODO fix this
+    let obs = Tensor<Float>(agentInfoList.map({Tensor<Float>($0.observations[obsIndex].floatData.data)}) )
     try raiseOnNanAndInf(data: obs.scalars, source: "observations")
     return obs
 }
