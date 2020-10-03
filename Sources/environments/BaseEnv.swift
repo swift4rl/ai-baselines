@@ -706,9 +706,13 @@ open class BaseEnv: UnityEnv {
             }
             for i in 0 ..< nAgents{
                 var action = CommunicatorObjects_AgentActionProto()
-                action.vectorActions = vectorAction[b]?[i].scalar as! [Float32]
+                if let act = vectorAction[b]?[i] {
+                    print(action)
+                    action.vectorActions = act.scalars
+                }
                 rlIn.agentActions[b]?.value += [action]
                 rlIn.command = CommunicatorObjects_CommandProto.step
+                print(rlIn)
             }
         }
         if let sideChannel = sideChannelManager?.generateSideChannelMessages(){

@@ -298,13 +298,15 @@ open class UnityToGymWrapper {
         - info (dict): contains auxiliary diagnostic information.
      """
      */
-    public func step(_ action: Tensor<Scalar>) throws -> StepResult<Float32>{
+    public func step(_ action: Tensor<Float32>) throws -> StepResult<Float32>{
         var act = action
         if let flattener = self.flattener {
             act = flattener.lookupAction(action)
         }
 
         if let spec = self.groupSpec {
+            print(action)
+            print(spec.actionSize)
             act = action.reshaped(to: TensorShape(1, spec.actionSize))
         }
 

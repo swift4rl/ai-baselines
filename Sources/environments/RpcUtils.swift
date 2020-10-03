@@ -126,6 +126,7 @@ func processVectorObservation(
         let data: [Float] = obs.floatData.data
         return Tensor<Float>(data)
     })
+    //Tensor.ini
     let obs = Tensor<Float>(a)
     try raiseOnNanAndInf(data: obs.scalars, source: "observations")
     return obs

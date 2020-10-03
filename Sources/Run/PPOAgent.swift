@@ -69,17 +69,14 @@ open class PPOAgent {
     }
 
     open func step(env: UnityToGymWrapper, state: Tensor<Float32>) throws -> (Tensor<Float32>, Bool, Float) {
-        let dist: Categorical<Int32> = oldActorCritic(state)
-        let action: Tensor<Int32> = dist.sample()
+        let actionProbs: Tensor<Float32> = oldActorCritic(state)
         var ret: (Tensor<Float32>, Bool, Float)
         //TODO change this env.step(Tensor<Float32>(action)) with proper Float actions
-        if case let StepResult.SingleStepResult(observation, reward, done, _) = try env.step(Tensor<Float32>(action)),
-           let act: Int32 = action.scalar {
+        if case let StepResult.SingleStepResult(observation, reward, done, _) = try env.step(actionProbs) {
             memory.append(
                 state: state,
-                action: action,
+                action: actionProbs,
                 reward: reward,
-                logProb: dist.logProbabilities[Int(act)].scalarized(),
                 isDone: done
             )
             ret = (observation, done, reward)
@@ -91,8 +88,8 @@ open class PPOAgent {
 
     open func update() {
         // Discount rewards for advantage estimation
-        var rewards: [Float] = []
-        var discountedReward: Float = 0
+        var rewards: [Float32] = []
+        var discountedReward: Float32 = 0
         for i in (0..<memory.rewards.count).reversed() {
             if memory.isDones[i] {
                 discountedReward = 0
@@ -100,33 +97,30 @@ open class PPOAgent {
             discountedReward = memory.rewards[i] + (discount * discountedReward)
             rewards.insert(discountedReward, at: 0)
         }
-        var tfRewards = Tensor<Float>(rewards)
+        var tfRewards = Tensor<Float32>(rewards)
         tfRewards = (tfRewards - tfRewards.mean()) / (tfRewards.standardDeviation() + 1e-5)
 
         // Retrieve stored states, actions, and log probabilities
         let oldStates: Tensor<Float32> = Tensor(memory.states)
-        let oldActions: Tensor<Int32> = Tensor(memory.actions)
-        let oldLogProbs: Tensor<Float> = Tensor(memory.logProbs)
+        let oldActions: Tensor<Float32> = Tensor(memory.actions)
 
         // Optimize actor and critic
-        var actorLosses: [Float] = []
-        var criticLosses: [Float] = []
+        var actorLosses: [Float32] = []
+        var criticLosses: [Float32] = []
         for _ in 0..<epochs {
             // Optimize policy network (actor)
-            let (actorLoss, actorGradients) = valueWithGradient(at: self.actorCritic.actorNetwork) { actorNetwork -> Tensor<Float> in
-                let tfIndices = Tensor(stacking: [Tensor<Int32>(rangeFrom: 0, to: Int32(oldActions.shape[0]), stride: 1), oldActions], alongAxis: 1)
-                let actionProbs = actorNetwork(oldStates).dimensionGathering(atIndices: tfIndices)
-
-                let dist = Categorical<Int32>(probabilities: actionProbs)
+            let (actorLoss, actorGradients) = valueWithGradient(at: self.actorCritic.actorNetwork) { actorNetwork -> Tensor<Float32> in
+                let actionProbs = actorNetwork(oldStates)
                 let stateValues = self.actorCritic.criticNetwork(oldStates).flattened()
-                let ratios: Tensor<Float> = exp(dist.logProbabilities - oldLogProbs)
+                let ratios: Tensor<Float> = exp(actionProbs - oldActions)
 
                 let advantages: Tensor<Float> = tfRewards - stateValues
                 let surrogateObjective = Tensor(stacking: [
                     ratios * advantages,
                     ratios.clipped(min:1 - self.clipEpsilon, max: 1 + self.clipEpsilon) * advantages
                 ]).min(alongAxes: 0).flattened()
-                let entropyBonus: Tensor<Float> = Tensor<Float>(self.entropyCoefficient * dist.entropy())
+                let entropy = -(actionProbs * exp(actionProbs)).sum(squeezingAxes: -1)
+                let entropyBonus: Tensor<Float> = Tensor<Float>(self.entropyCoefficient * entropy)
                 let loss: Tensor<Float> = -1 * (surrogateObjective + entropyBonus)
 
                 return loss.mean()

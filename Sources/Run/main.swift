@@ -25,7 +25,7 @@ guard let env = UnityToGymWrapper(env: unityEnv, uint8Visual: false, flattenBran
 }
 
 let observationSize: Int =  8 //Int(env.observationSpace?.shape[0] ?? 0)
-let actionCount: Int = Int(env.actionSpace?.n ?? 0)
+let actionCount: Int = 2
 
 // Hyperparameters
 /// The !size of the hidden layer of the 2-layer actor network and critic network. The actor network
@@ -91,6 +91,7 @@ for episodeIndex in 1..<maxEpisodes+1 {
         var reward: Float
         for timeStep in 0..<maxTimesteps {
             timestep += 1
+            state = state.reshaped(to: TensorShape(1, state.shape[0]))
             (state, isDone, reward) = try agent.step(env: env, state: state)
 
             if timestep % updateTimestep == 0 {

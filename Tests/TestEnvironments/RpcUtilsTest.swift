@@ -57,8 +57,16 @@ final class RpcUtilsTest: XCTestCase {
     func testTensor() {
         let given = Tensor<Int32>(repeating: 1, shape: [2,8])
         let result = given.gathering(atIndices: Tensor<Int32>(Int32(0)), alongAxis: 0)
-        print(result)
         XCTAssertEqual(TensorShape(8), result.shape)
+    }
+    
+    func testReShape(){
+        var arr = Tensor<Float>([1,2,3,4])
+        print(arr)
+        print(arr.shape)
+        arr = arr.reshaped(to: TensorShape(1, arr.shape[0]))
+        print(arr)
+        print(arr.shape)
     }
     
     func testProcessVectorObservationn() throws {
