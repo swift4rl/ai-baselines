@@ -7,36 +7,40 @@
 
 import PythonKit
 import TensorFlow
-import Gym
 import Foundation
-
+import environments
 // Initialize Python. This comment is a hook for internal use, do not remove.
-let gym = Python.import("gym")
-let uw = Python.import("gym_unity.envs")
-let ue = Python.import("mlagents_envs.environment")
 let tf = Python.import("tensorflow")
-let usc = Python.import("mlagents_envs.side_channel.engine_configuration_channel")
 
-let dirPath = "/YOUR-PATH/ai-baselines/"
-let saved_unity_env_path = dirPath + "envs/YOUR-ENVIRONMENT.app"
+let dirPath = "/var/log/ai-baselines/"
+let saved_unity_env_path = dirPath + "envs/cartpole.app"
 
-let channel = usc.EngineConfigurationChannel()
-channel.set_configuration_parameters(time_scale: 3.0)
+let appPath = FileManager.default.homeDirectoryForCurrentUser
+    .appendingPathComponent("Desktop")
+    .appendingPathComponent("cartpole.app")
+    .appendingPathComponent("Contents")
+    .appendingPathComponent("MacOS")
+    .appendingPathComponent("ML experiment")
 
-let unity_env = ue.UnityEnvironment(saved_unity_env_path, side_channels: [channel])
-let env = uw.UnityToGymWrapper(unity_env)
+print(appPath)
 
-//let env = gym.make("CartPole-v0")
-let observationSize: Int = Int(env.observation_space.shape[0])!
-let actionCount: Int = Int(env.action_space.n)!
+let channel = EngineConfigurationChannel()
+try channel.setConfigurationParameters(timeScale: 3.0)
+let unityEnv = UnityContinousEnvironment(filename: appPath, basePort: 5004, sideChannels: [])
+guard let env = UnityToGymWrapper(env: unityEnv, uint8Visual: false, flattenBranched: false, allowMultipleObs: false) else {
+    throw UnityException.UnityGymException(reason: "failed to create unitygymwrapper")
+}
+
+let observationSize: Int =  8 //Int(env.observationSpace?.shape[0] ?? 0)
+let actionCount: Int = 2
 
 // Hyperparameters
-/// The size of the hidden layer of the 2-layer actor network and critic network. The actor network
+/// The !size of the hidden layer of the 2-layer actor network and critic network. The actor network
 /// has the shape observationSize - hiddenSize - actionCount, and the critic network has the same
 /// shape but with a single output node.
 let hiddenSize: Int = 128
 /// The learning rate for both the actor and the critic.
-let learningRate: Float = 0.0003
+let learningRate: Float = 0.05
 /// The discount factor. This measures how much to "discount" the future rewards
 /// that the agent will receive. The discount factor must be from 0 to 1
 /// (inclusive). Discount factor of 0 means that the agent only considers the
@@ -89,33 +93,36 @@ var episodeReturn: Float = 0
 var episodeReturns: [Float] = []
 var maxEpisodeReturn: Float = -1
 for episodeIndex in 1..<maxEpisodes+1 {
-    var state = env.reset()
-    var isDone: Bool
-    var reward: Float
-    for timeStep in 0..<maxTimesteps {
-        timestep += 1
-        (state, isDone, reward) = agent.step(env: env, state: state)
+    if case var .SingleStepResult(state, _, _, _) = try env.reset() {
+        var isDone: Bool
+        var reward: Float
+        for timeStep in 0..<maxTimesteps {
+            timestep += 1
+            state = state.reshaped(to: TensorShape(1, state.shape[0]))
+            (state, isDone, reward) = try agent.step(env: env, state: state)
 
-        if timestep % updateTimestep == 0 {
-            print("training...")
-            agent.update()
-            timestep = 0
+            if timestep % updateTimestep == 0 {
+                print("training...")
+                agent.update()
+                timestep = 0
+            }
+
+            episodeReturn += reward
+            if isDone {
+                episodeReturns.append(episodeReturn)
+                print(String(format: "Episode: %d | Return: %.2f | Timesteps: %d", episodeIndex, episodeReturn, timeStep))
+                tf.summary.scalar("episode_return", data: episodeReturn, step: episodeIndex)
+                tf.summary.scalar("episode_timesteps", data: timeStep, step: episodeIndex)
+                episodeReturn = 0
+                break
+            }
         }
-
-        episodeReturn += reward
-        if isDone {
-            episodeReturns.append(episodeReturn)
-            print(String(format: "Episode: %d | Return: %.2f | Timesteps: %d", episodeIndex, episodeReturn, timeStep))
-            tf.summary.scalar("episode_return", data: episodeReturn, step: episodeIndex)
-            tf.summary.scalar("episode_timesteps", data: timeStep, step: episodeIndex)
-            episodeReturn = 0
-            break
+        if episodeIndex % 10 == 0 {
+            let avgEpisodeReturns = episodeReturns.suffix(10).reduce(0, +) / 10.0
+            print(String(format: "Average returns of last 10 episodes: %.2f", avgEpisodeReturns))
         }
     }
-    if episodeIndex % 10 == 0 {
-        let avgEpisodeReturns = episodeReturns.suffix(10).reduce(0, +) / 10.0
-        print(String(format: "Average returns of last 10 episodes: %.2f", avgEpisodeReturns))
-    }
+        
 }
 
-env.close()
+try env.close()

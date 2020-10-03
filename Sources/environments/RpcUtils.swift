@@ -10,7 +10,7 @@ import TensorFlow
 
 typealias SpaceTypeProto = CommunicatorObjects_SpaceTypeProto
 typealias CompressionTypeProto = CommunicatorObjects_CompressionTypeProto
-/**
+/*
 Converts brain parameter and agent info proto to BehaviorSpec object.
  - Parameters:
   - brainParamProto: protobuf object.
@@ -79,7 +79,7 @@ throws -> (DecisionSteps, TerminalSteps)  {
     let terminalAgentId = terminalAgentInfoList.map({$0.id})
     
     var actionMask: Optional<[Tensor<Bool>]> = Optional.none
-    if behaviorSpec.isActionDiscrete {
+    if let behaviorSpec = behaviorSpec as? BehaviorSpecDiscreteAction{
         let nAgents = decisionAgentInfoList.count
         if let aSize = behaviorSpec.discreteActionBranches?.reduce(0, +) {
             var maskMatrix = Tensor<Bool>(repeating: true, shape: [nAgents, Int(aSize)])
@@ -94,7 +94,6 @@ throws -> (DecisionSteps, TerminalSteps)  {
             }
         }
     }
-    //return (DecisionSteps.empty(spec: behaviorSpec), TerminalSteps.empty(spec: behaviorSpec))
     return (
         DecisionSteps(
             obs: decisionObsList, reward: Tensor(decisionRewards), agentId: decisionAgentId, actionMask: actionMask
@@ -122,7 +121,13 @@ func processVectorObservation(
     if agentInfoList.count == 0 {
         return Tensor<Float32>(repeating:0, shape: TensorShape(Int(shape[0])))
     }
-    let obs = Tensor<Float>(stacking: agentInfoList.map({Tensor<Float>($0.observations[obsIndex].floatData.data)}) )
+    let a: [Tensor<Float>] = agentInfoList.map({
+        let obs: CommunicatorObjects_ObservationProto = $0.observations[obsIndex]
+        let data: [Float] = obs.floatData.data
+        return Tensor<Float>(data)
+    })
+    //Tensor.ini
+    let obs = Tensor<Float>(a)
     try raiseOnNanAndInf(data: obs.scalars, source: "observations")
     return obs
 }
@@ -199,10 +204,11 @@ func raiseOnNanAndInf(data: [Float32], source: String) throws -> Void {
     if data.count == 0{
         return ;
     }
-    guard let _ = data.first(where: {$0.isNaN}) else {
+    
+    if let _ = data.first(where: {$0.isNaN}) {
         throw UnityException.UnityEnvironmentException(reason: "The \(source) provided had NaN values.")
     }
-    guard let _ = data.first(where: {$0.isInfinite}) else {
+    if let _ = data.first(where: {$0.isInfinite}) {
         throw UnityException.UnityEnvironmentException(reason: "The \(source) provided had Infinite values.")
     }
 }

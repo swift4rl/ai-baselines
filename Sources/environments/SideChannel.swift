@@ -8,7 +8,7 @@
 import Foundation
 import NIO
 
-class SideChannel {
+open class SideChannel {
     let channelId: UUID
     var messageQueue = [ByteBuffer]()
     
