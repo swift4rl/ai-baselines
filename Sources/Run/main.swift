@@ -9,7 +9,6 @@ import PythonKit
 import TensorFlow
 import Foundation
 import environments
-
 // Initialize Python. This comment is a hook for internal use, do not remove.
 let tf = Python.import("tensorflow")
 
