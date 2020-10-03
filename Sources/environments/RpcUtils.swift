@@ -121,8 +121,12 @@ func processVectorObservation(
     if agentInfoList.count == 0 {
         return Tensor<Float32>(repeating:0, shape: TensorShape(Int(shape[0])))
     }
-    //TODO fix this
-    let obs = Tensor<Float>(agentInfoList.map({Tensor<Float>($0.observations[obsIndex].floatData.data)}) )
+    let a: [Tensor<Float>] = agentInfoList.map({
+        let obs: CommunicatorObjects_ObservationProto = $0.observations[obsIndex]
+        let data: [Float] = obs.floatData.data
+        return Tensor<Float>(data)
+    })
+    let obs = Tensor<Float>(a)
     try raiseOnNanAndInf(data: obs.scalars, source: "observations")
     return obs
 }
@@ -199,10 +203,11 @@ func raiseOnNanAndInf(data: [Float32], source: String) throws -> Void {
     if data.count == 0{
         return ;
     }
-    guard let _ = data.first(where: {$0.isNaN}) else {
+    
+    if let _ = data.first(where: {$0.isNaN}) {
         throw UnityException.UnityEnvironmentException(reason: "The \(source) provided had NaN values.")
     }
-    guard let _ = data.first(where: {$0.isInfinite}) else {
+    if let _ = data.first(where: {$0.isInfinite}) {
         throw UnityException.UnityEnvironmentException(reason: "The \(source) provided had Infinite values.")
     }
 }

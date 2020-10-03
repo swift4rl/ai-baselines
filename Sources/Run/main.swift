@@ -24,7 +24,7 @@ guard let env = UnityToGymWrapper(env: unityEnv, uint8Visual: false, flattenBran
     throw UnityException.UnityGymException(reason: "failed to create unitygymwrapper")
 }
 
-let observationSize: Int =  Int(env.observationSpace?.shape[0] ?? 0)
+let observationSize: Int =  8 //Int(env.observationSpace?.shape[0] ?? 0)
 let actionCount: Int = Int(env.actionSpace?.n ?? 0)
 
 // Hyperparameters

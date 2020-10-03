@@ -48,12 +48,20 @@ struct Box<Scalar: TensorFlowScalar>: Space {
     var n: Int32 = 0
     
     public var shape: [Int32]
+    public var minT: Tensor<Scalar>? = Optional.none
+    public var maxT: Tensor<Scalar>? = Optional.none
+    public var min: Scalar? = Optional.none
+    public var max: Scalar? = Optional.none
     
     init(min: Tensor<Scalar>, max: Tensor<Scalar>, shape: [Int32]? = Optional.none) {
         self.shape = shape ?? []
+        self.minT = min
+        self.maxT = max
     }
     init(min: Scalar, max: Scalar, shape: [Int32]? = Optional.none) {
         self.shape = shape ?? []
+        self.min = min
+        self.max = max
         //TODO
     }
 }
@@ -249,7 +257,7 @@ open class UnityToGymWrapper {
         }
         if let vecObsSize = self.getVecObsSize(), vecObsSize > 0 {
             let high = Tensor<Float32>(repeating: Float32.infinity, shape: [Int(vecObsSize)])
-            listSpaces.append(Box(min: -high, max: high))
+            listSpaces.append(Box(min: -high, max: high, shape: [vecObsSize]))
         }
         if self.allowMultipleObs {
             self.observationSpace = Tuple(listSpaces)
@@ -372,6 +380,9 @@ open class UnityToGymWrapper {
             if obs.shape.count == 2{
                 result.append(obs)
             }
+        }
+        if result.count == 1 {
+            return result[0]
         }
         return Tensor(concatenating: result, alongAxis: 1)
     }

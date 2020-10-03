@@ -60,4 +60,42 @@ final class RpcUtilsTest: XCTestCase {
         print(result)
         XCTAssertEqual(TensorShape(8), result.shape)
     }
+    
+    func testProcessVectorObservationn() throws {
+        let nAgents: Int = 10
+        let shapes: [[Int32]] = [[3], [4]]
+        let listProto = generateListAgentProto(nAgents, shapes)
+        print(listProto)
+        for (obsIndex, shape) in shapes.enumerated(){
+            let arr = try processVectorObservation(obsIndex: obsIndex, shape: shape, agentInfoList: listProto)
+            let expected = [nAgents] + [shape]
+            print(arr)
+            XCTAssertTrue(arr.scalars.map({ abs($0 - 0.1) < 0.01 }).reduce(true, {$0 && $1}))
+        }
+    }
+    
+    func generateListAgentProto(_ nAgent: Int, _ shape: [[Int32]], infiniteRewards: Bool = false, nanObservations: Bool = false) -> [CommunicatorObjects_AgentInfoProto] {
+        var result:[CommunicatorObjects_AgentInfoProto] = []
+        for agentIndex in Int32(0) ..< Int32(nAgent) {
+            var ap = CommunicatorObjects_AgentInfoProto()
+            ap.reward = infiniteRewards ? Float.infinity : Float(agentIndex)
+            ap.done = agentIndex % 2 == 0
+            ap.maxStepReached = agentIndex % 4 == 0
+            ap.id = agentIndex
+            ap.actionMask += zip(Array(repeating: true, count: 5),Array(repeating: false, count: 5)).flatMap{[$0,$1]}
+            var obsProtoList: [CommunicatorObjects_ObservationProto] = []
+            for obsIndex in 0 ..< shape.count {
+                var obsProto = CommunicatorObjects_ObservationProto()
+                obsProto.shape += shape[obsIndex]
+                obsProto.floatData.data += Array<Float>(
+                    repeating: ( nanObservations ? Float.nan : 0.1 ),
+                    count: Int(shape[obsIndex].reduce(1, *))
+                )
+                obsProtoList.append(obsProto)
+            }
+            ap.observations += obsProtoList
+            result.append(ap)
+        }
+        return result
+    }
 }
