@@ -77,6 +77,7 @@ open class PPOAgent {
                 state: state,
                 action: actionProbs,
                 reward: reward,
+                logProb: -(actionProbs * exp(actionProbs)).sum(squeezingAxes: -1),
                 isDone: done
             )
             ret = (observation, done, reward)
@@ -103,7 +104,7 @@ open class PPOAgent {
         // Retrieve stored states, actions, and log probabilities
         let oldStates: Tensor<Float32> = Tensor(memory.states)
         let oldActions: Tensor<Float32> = Tensor(memory.actions)
-
+        let oldLogProbs: Tensor<Float32> = Tensor(memory.logProbs)
         // Optimize actor and critic
         var actorLosses: [Float32] = []
         var criticLosses: [Float32] = []
@@ -111,9 +112,9 @@ open class PPOAgent {
             // Optimize policy network (actor)
             let (actorLoss, actorGradients) = valueWithGradient(at: self.actorCritic.actorNetwork) { actorNetwork -> Tensor<Float32> in
                 let actionProbs = actorNetwork(oldStates)
+                let logProbs = -(actionProbs * exp(actionProbs)).sum(squeezingAxes: -1)
                 let stateValues = self.actorCritic.criticNetwork(oldStates).flattened()
-                let ratios: Tensor<Float> = exp(actionProbs - oldActions)
-
+                let ratios: Tensor<Float> = exp(logProbs - oldLogProbs)
                 let advantages: Tensor<Float> = tfRewards - stateValues
                 let surrogateObjective = Tensor(stacking: [
                     ratios * advantages,

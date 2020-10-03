@@ -355,7 +355,7 @@ public protocol UnityEnv {
     var props: Props { get set }
     
     init()
-    init(filename: String?,
+    init(filename: URL?,
         workerId: Int ,
         basePort: Int?,
         seed: Int32,
@@ -534,7 +534,7 @@ open class BaseEnv: UnityEnv {
     }
 
     required public convenience init(
-        filename: String?,
+        filename: URL?,
         workerId: Int = 0,
         basePort: Int?,
         seed: Int32 = 0,
@@ -560,7 +560,7 @@ open class BaseEnv: UnityEnv {
             if let aArgs = additionalArgs {
                 args += aArgs
             }
-            _ = try? Process.run(URL(fileURLWithPath: filename), arguments: args, terminationHandler: { process in
+            _ = try? Process.run(filename, arguments: args, terminationHandler: { process in
                 print("Process terminated", process)
                 //TODO handle error
             })
@@ -707,12 +707,10 @@ open class BaseEnv: UnityEnv {
             for i in 0 ..< nAgents{
                 var action = CommunicatorObjects_AgentActionProto()
                 if let act = vectorAction[b]?[i] {
-                    print(action)
                     action.vectorActions = act.scalars
                 }
                 rlIn.agentActions[b]?.value += [action]
                 rlIn.command = CommunicatorObjects_CommandProto.step
-                print(rlIn)
             }
         }
         if let sideChannel = sideChannelManager?.generateSideChannelMessages(){

@@ -38,7 +38,6 @@ class UnityToExternalServicerImplementation : CommunicatorObjects_UnityToExterna
     
     func initialize(request: CommunicatorObjects_UnityMessageProto, context: StatusOnlyCallContext) ->
     EventLoopFuture<CommunicatorObjects_UnityMessageProto> {
-        print("rpc --->> initalize --->> \(request.debugDescription))")
         let p = context.eventLoop.makePromise(of: CommunicatorObjects_UnityMessageProto.self)
         q.append((request,p))
         self.firstMsg?.succeed(true)
@@ -47,7 +46,6 @@ class UnityToExternalServicerImplementation : CommunicatorObjects_UnityToExterna
     }
     
     func exchange(request: CommunicatorObjects_UnityMessageProto, context: StatusOnlyCallContext) -> EventLoopFuture<CommunicatorObjects_UnityMessageProto> {
-        print("rpc --->> exchange --->> \(request.debugDescription))")
         let p = context.eventLoop.makePromise(of: CommunicatorObjects_UnityMessageProto.self)
         q.append((request,p))
         self.firstMsg?.succeed(true)
@@ -67,7 +65,7 @@ public class RpcCommunicator: Communicator {
     let provider: UnityToExternalServicerImplementation
     var server: Server?
     var group: MultiThreadedEventLoopGroup
-    
+    let sleepInterval = 0.05
     public required init(workerId: Int=0, port: Int=5005, group: MultiThreadedEventLoopGroup =  MultiThreadedEventLoopGroup(numberOfThreads: 1)) {
         self.workerId = workerId
         self.port = port + workerId
@@ -98,15 +96,14 @@ public class RpcCommunicator: Communicator {
         message.unityInput = inputs
         var m = self.provider.next()
         while m == nil {
-            sleep(1)
+            Thread.sleep(forTimeInterval: sleepInterval)
             m = self.provider.next()
         }
         _ = try? self.provider.firstMsg?.futureResult.wait()
-        print("model --->> initalize --->> \(message.debugDescription)")
         m?.1.succeed(message)
         var n = self.provider.next(delete: false)
         while n == nil {
-            sleep(1)
+            Thread.sleep(forTimeInterval: sleepInterval)
             n = self.provider.next(delete: false)
         }
         return m?.0.unityOutput
@@ -114,20 +111,18 @@ public class RpcCommunicator: Communicator {
     
     func exchange(inputs: CommunicatorObjects_UnityInputProto) -> Optional<CommunicatorObjects_UnityOutputProto> {
         var message = CommunicatorObjects_UnityMessageProto()
-        print("model --->> exchange -->>")
         message.header.status = 200
         message.unityInput = inputs
         var m = self.provider.next()
         while m == nil {
-            sleep(1)
+            Thread.sleep(forTimeInterval: sleepInterval)
             m = self.provider.next()
         }
-        print("model --->> initalize --->> \(message.debugDescription))")
         m?.1.succeed(message)
         
         m = self.provider.next(delete: false)
         while m == nil {
-            sleep(1)
+            Thread.sleep(forTimeInterval: sleepInterval)
             m = self.provider.next(delete: false)
         }
         if m?.0.header.status != 200{

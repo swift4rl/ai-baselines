@@ -305,8 +305,6 @@ open class UnityToGymWrapper {
         }
 
         if let spec = self.groupSpec {
-            print(action)
-            print(spec.actionSize)
             act = action.reshaped(to: TensorShape(1, spec.actionSize))
         }
 

@@ -16,10 +16,18 @@ let tf = Python.import("tensorflow")
 let dirPath = "/var/log/ai-baselines/"
 let saved_unity_env_path = dirPath + "envs/cartpole.app"
 
+let appPath = FileManager.default.homeDirectoryForCurrentUser
+    .appendingPathComponent("Desktop")
+    .appendingPathComponent("cartpole.app")
+    .appendingPathComponent("Contents")
+    .appendingPathComponent("MacOS")
+    .appendingPathComponent("ML experiment")
+
+print(appPath)
 
 let channel = EngineConfigurationChannel()
 try channel.setConfigurationParameters(timeScale: 3.0)
-let unityEnv = UnityContinousEnvironment(filename: "/Users/sercankaraoglu/Desktop/cartpole.app/Contents/MacOS/ML experiment", basePort: 5004, sideChannels: [])
+let unityEnv = UnityContinousEnvironment(filename: appPath, basePort: 5004, sideChannels: [])
 guard let env = UnityToGymWrapper(env: unityEnv, uint8Visual: false, flattenBranched: false, allowMultipleObs: false) else {
     throw UnityException.UnityGymException(reason: "failed to create unitygymwrapper")
 }
@@ -33,7 +41,7 @@ let actionCount: Int = 2
 /// shape but with a single output node.
 let hiddenSize: Int = 128
 /// The learning rate for both the actor and the critic.
-let learningRate: Float = 0.0003
+let learningRate: Float = 0.05
 /// The discount factor. This measures how much to "discount" the future rewards
 /// that the agent will receive. The discount factor must be from 0 to 1
 /// (inclusive). Discount factor of 0 means that the agent only considers the
@@ -51,7 +59,7 @@ let clipEpsilon: Float = 0.1
 let entropyCoefficient: Float = 0.0001
 /// Maximum number of episodes to train the agent. The training is terminated
 /// early if maximum score is achieved consecutively 10 times.
-let maxEpisodes: Int = 10
+let maxEpisodes: Int = 100000
 /// Maximum timestep per episode.
 let maxTimesteps: Int = 500
 /// The length of the trajectory segment. Denoted T in the PPO paper.
