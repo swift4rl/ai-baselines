@@ -37,12 +37,12 @@ brew install python@3.8
 ```
 
 ### Install python dependencies
-In your newly installed python 3.8 install dependencies. The path is on my mac "/usr/local/Frameworks/Python.framework/Versions/bin/python3"
+We need python dependencies for only observing training in tensorboard, other than that we use [Swift for Tensorflow](https://www.tensorflow.org/swift) in the project. In your newly installed python 3.8 install dependencies. The path is on my mac "/usr/local/Frameworks/Python.framework/Versions/bin/python3"
 
 Use your path as from the example above
 
 ```bash
-PATH/python3 -m pip gym numpy matplotlib mlagents tensorflow tensorboard
+PATH/python3 -m pip install tensorflow tensorboard
 ```
 
 If you have not installed pip in the python version above do it as in [here](https://pip.pypa.io/en/stable/installing/). With the python path as above.
