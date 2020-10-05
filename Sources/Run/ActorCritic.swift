@@ -40,7 +40,7 @@ struct ActorNetwork: Layer {
         l3 = Dense<Float>(
             inputSize: hiddenSize,
             outputSize: actionCount,
-            activation: softmax,
+            activation: tanh,
             weightInitializer: heNormal()
         )
     }

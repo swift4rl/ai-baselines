@@ -38,9 +38,9 @@ let actionCount: Int = 2
 /// The !size of the hidden layer of the 2-layer actor network and critic network. The actor network
 /// has the shape observationSize - hiddenSize - actionCount, and the critic network has the same
 /// shape but with a single output node.
-let hiddenSize: Int = 128
+let hiddenSize: Int = 32
 /// The learning rate for both the actor and the critic.
-let learningRate: Float = 0.05
+let learningRate: Float = 0.1
 /// The discount factor. This measures how much to "discount" the future rewards
 /// that the agent will receive. The discount factor must be from 0 to 1
 /// (inclusive). Discount factor of 0 means that the agent only considers the
@@ -50,7 +50,7 @@ let learningRate: Float = 0.05
 let discount: Float = 0.99
 /// Number of epochs to run minibatch updates once enough trajectory segments are collected. Denoted
 /// K in the PPO paper.
-let epochs: Int = 10
+let epochs: Int = 100
 /// Parameter to clip the probability ratio. The ratio is clipped to [1-clipEpsilon, 1+clipEpsilon].
 /// Denoted epsilon in the PPO paper.
 let clipEpsilon: Float = 0.1
@@ -62,7 +62,7 @@ let maxEpisodes: Int = 100000
 /// Maximum timestep per episode.
 let maxTimesteps: Int = 500
 /// The length of the trajectory segment. Denoted T in the PPO paper.
-let updateTimestep: Int = 500
+let updateTimestep: Int = 100
 
 
 var agent: PPOAgent = PPOAgent(

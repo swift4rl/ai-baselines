@@ -707,16 +707,17 @@ open class BaseEnv: UnityEnv {
             for i in 0 ..< nAgents{
                 var action = CommunicatorObjects_AgentActionProto()
                 if let act = vectorAction[b]?[i] {
+                    var agentAction = CommunicatorObjects_UnityRLInputProto.ListAgentActionProto()
                     action.vectorActions = act.scalars
+                    agentAction.value += [action]
+                    rlIn.agentActions[b] = agentAction
                 }
-                rlIn.agentActions[b]?.value += [action]
                 rlIn.command = CommunicatorObjects_CommandProto.step
             }
         }
         if let sideChannel = sideChannelManager?.generateSideChannelMessages(){
             rlIn.sideChannel = sideChannel
         }
-        
         return wrapUnityInput(rlInput: rlIn)
     }
     
