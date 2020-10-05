@@ -115,7 +115,7 @@ open class PPOAgent {
                 let logProbs = -(actionProbs * exp(actionProbs)).sum(squeezingAxes: -1)
                 let stateValues = self.actorCritic.criticNetwork(oldStates).flattened()
                 let ratios: Tensor<Float> = exp(logProbs - oldLogProbs)
-                let advantages: Tensor<Float> = tfRewards - stateValues
+                let advantages: Tensor<Float> = (tfRewards - stateValues)
                 let surrogateObjective = Tensor(stacking: [
                     ratios * advantages,
                     ratios.clipped(min:1 - self.clipEpsilon, max: 1 + self.clipEpsilon) * advantages
