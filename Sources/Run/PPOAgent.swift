@@ -69,15 +69,15 @@ open class PPOAgent {
     }
 
     open func step(env: UnityToGymWrapper, state: Tensor<Float32>) throws -> (Tensor<Float32>, Bool, Float) {
-        let actionProbs: Tensor<Float32> = oldActorCritic(state)
+        let action: Tensor<Float32> = env.actionSpace!.sample()
         var ret: (Tensor<Float32>, Bool, Float)
         //TODO change this env.step(Tensor<Float32>(action)) with proper Float actions
-        if case let StepResult.SingleStepResult(observation, reward, done, _) = try env.step(actionProbs) {
+        if case let StepResult.SingleStepResult(observation, reward, done, _) = try env.step(action) {
             memory.append(
                 state: state,
-                action: actionProbs,
+                action: action,
                 reward: reward,
-                logProb: -(actionProbs * exp(actionProbs)).sum(squeezingAxes: -1),
+                logProb: -(action * exp(action)).sum(squeezingAxes: -1),
                 isDone: done
             )
             ret = (observation, done, reward)

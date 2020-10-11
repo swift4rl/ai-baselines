@@ -12,8 +12,7 @@ import environments
 // Initialize Python. This comment is a hook for internal use, do not remove.
 let tf = Python.import("tensorflow")
 
-let dirPath = "/var/log/ai-baselines/"
-let saved_unity_env_path = dirPath + "envs/cartpole.app"
+let dirPath = "/Users/sercankaraoglu/log/ai-baselines/"
 
 let appPath = FileManager.default.homeDirectoryForCurrentUser
     .appendingPathComponent("Desktop")
