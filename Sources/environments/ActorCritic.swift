@@ -94,7 +94,7 @@ struct CriticNetwork: Layer {
 /// they are separated networks.
 struct ActorCritic: Layer {
     typealias Input = Tensor<Float32>
-    typealias Output = Tensor<Float32>
+    typealias Output = DiagGaussianProbabilityDistribution
     
     var actorNetwork: ActorNetwork
     var criticNetwork: CriticNetwork
@@ -114,6 +114,6 @@ struct ActorCritic: Layer {
     @differentiable
     func callAsFunction(_ state: Input) -> Output {
         precondition(state.rank == 2, "The input must be 2-D ([batch size, state size]).")
-        return self.actorNetwork(state).flattened()
+        return DiagGaussianProbabilityDistribution(flat: self.actorNetwork(state).flattened())
     }
 }

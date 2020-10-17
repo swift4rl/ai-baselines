@@ -37,9 +37,9 @@ let actionCount: Int = 2
 /// The !size of the hidden layer of the 2-layer actor network and critic network. The actor network
 /// has the shape observationSize - hiddenSize - actionCount, and the critic network has the same
 /// shape but with a single output node.
-let hiddenSize: Int = 32
+let hiddenSize: Int = 128
 /// The learning rate for both the actor and the critic.
-let learningRate: Float = 0.1
+let learningRate: Float = 0.003
 /// The discount factor. This measures how much to "discount" the future rewards
 /// that the agent will receive. The discount factor must be from 0 to 1
 /// (inclusive). Discount factor of 0 means that the agent only considers the
@@ -49,7 +49,7 @@ let learningRate: Float = 0.1
 let discount: Float = 0.99
 /// Number of epochs to run minibatch updates once enough trajectory segments are collected. Denoted
 /// K in the PPO paper.
-let epochs: Int = 100
+let epochs: Int = 10
 /// Parameter to clip the probability ratio. The ratio is clipped to [1-clipEpsilon, 1+clipEpsilon].
 /// Denoted epsilon in the PPO paper.
 let clipEpsilon: Float = 0.1
@@ -59,7 +59,7 @@ let entropyCoefficient: Float = 0.0001
 /// early if maximum score is achieved consecutively 10 times.
 let maxEpisodes: Int = 100000
 /// Maximum timestep per episode.
-let maxTimesteps: Int = 500
+let maxTimesteps: Int = 100
 /// The length of the trajectory segment. Denoted T in the PPO paper.
 let updateTimestep: Int = 100
 
@@ -91,7 +91,7 @@ var timestep: Int = 0
 var episodeReturn: Float = 0
 var episodeReturns: [Float] = []
 var maxEpisodeReturn: Float = -1
-for episodeIndex in 1..<maxEpisodes+1 {
+for episodeIndex in 0..<maxEpisodes {
     if case var .SingleStepResult(state, _, _, _) = try env.reset() {
         var isDone: Bool
         var reward: Float

@@ -69,15 +69,18 @@ open class PPOAgent {
     }
 
     open func step(env: UnityToGymWrapper, state: Tensor<Float32>) throws -> (Tensor<Float32>, Bool, Float) {
-        let action: Tensor<Float32> = env.actionSpace!.sample()
+        let dist: DiagGaussianProbabilityDistribution = oldActorCritic(state)
+        var action = dist.sample()
         var ret: (Tensor<Float32>, Bool, Float)
+        action = action.concatenated(with: dist.std)
+        print(action)
         //TODO change this env.step(Tensor<Float32>(action)) with proper Float actions
         if case let StepResult.SingleStepResult(observation, reward, done, _) = try env.step(action) {
             memory.append(
                 state: state,
                 action: action,
                 reward: reward,
-                logProb: -(action * exp(action)).sum(squeezingAxes: -1),
+                logProb: dist.neglogp(of: dist.actions),
                 isDone: done
             )
             ret = (observation, done, reward)
@@ -99,7 +102,7 @@ open class PPOAgent {
             rewards.insert(discountedReward, at: 0)
         }
         var tfRewards = Tensor<Float32>(rewards)
-        tfRewards = (tfRewards - tfRewards.mean()) / (tfRewards.standardDeviation() + 1e-5)
+        tfRewards = (tfRewards - tfRewards.mean()) / (tfRewards.standardDeviation() + 1e-8)
 
         // Retrieve stored states, actions, and log probabilities
         let oldStates: Tensor<Float32> = Tensor(memory.states)
@@ -111,16 +114,34 @@ open class PPOAgent {
         for _ in 0..<epochs {
             // Optimize policy network (actor)
             let (actorLoss, actorGradients) = valueWithGradient(at: self.actorCritic.actorNetwork) { actorNetwork -> Tensor<Float32> in
-                let actionProbs = actorNetwork(oldStates)
-                let logProbs = -(actionProbs * exp(actionProbs)).sum(squeezingAxes: -1)
+                let sh = TensorShape(oldActions.shape[0])
+                let range = Tensor<Int32>(rangeFrom: 0, to: Int32(oldActions.shape[0]), stride: 1)
+                let zeros = Tensor<Int32>(zeros: sh)
+                let tfIndices: Tensor<Int32> =
+                    Tensor(stacking: [
+                        range.concatenated(with: range),
+                        zeros.concatenated(with: zeros),
+                        zeros.concatenated(with: Tensor(ones: sh))
+                    ], alongAxis: 1)
+
+                var actionProbs: Tensor<Float32> = actorNetwork(oldStates)
+               // print(actionProbs)
+                //print(actionProbs.shape)
+                actionProbs = actionProbs.dimensionGathering(atIndices: tfIndices)
+                
+                let dist = DiagGaussianProbabilityDistribution(flat: actionProbs)
                 let stateValues = self.actorCritic.criticNetwork(oldStates).flattened()
-                let ratios: Tensor<Float> = exp(logProbs - oldLogProbs)
+                //print(actionProbs.shape)
+                //print(actionProbs)
+                
+                let logProbs = dist.neglogp(of: dist.actions)
+                let ratios: Tensor<Float32> = exp(logProbs - oldLogProbs)
                 let advantages: Tensor<Float> = (tfRewards - stateValues)
                 let surrogateObjective = Tensor(stacking: [
                     ratios * advantages,
-                    ratios.clipped(min:1 - self.clipEpsilon, max: 1 + self.clipEpsilon) * advantages
+                    ratios.clipped(min: -1, max: 1) * advantages
                 ]).min(alongAxes: 0).flattened()
-                let entropy = -(actionProbs * exp(actionProbs)).sum(squeezingAxes: -1)
+                let entropy = dist.entropy().mean()
                 let entropyBonus: Tensor<Float> = Tensor<Float>(self.entropyCoefficient * entropy)
                 let loss: Tensor<Float> = -1 * (surrogateObjective + entropyBonus)
 
