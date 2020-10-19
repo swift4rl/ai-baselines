@@ -22,7 +22,7 @@ struct ActorNetwork: Layer {
     typealias Input = Tensor<Float32>
     typealias Output = Tensor<Float32>
 
-    var l1, l2, l3: Dense<Float>
+    var l1, l2: Dense<Float>
 
     init(observationSize: Int, hiddenSize: Int, actionCount: Int) {
         l1 = Dense<Float>(
@@ -33,12 +33,6 @@ struct ActorNetwork: Layer {
         )
         l2 = Dense<Float>(
             inputSize: hiddenSize,
-            outputSize: hiddenSize,
-            activation: tanh,
-            weightInitializer: heNormal()
-        )
-        l3 = Dense<Float>(
-            inputSize: hiddenSize,
             outputSize: actionCount,
             activation: tanh,
             weightInitializer: heNormal()
@@ -47,7 +41,7 @@ struct ActorNetwork: Layer {
 
     @differentiable
     func callAsFunction(_ input: Input) -> Output {
-        return input.sequenced(through: l1, l2, l3)
+        return input.sequenced(through: l1, l2)
     }
 }
 
@@ -60,22 +54,16 @@ struct CriticNetwork: Layer {
     typealias Input = Tensor<Float32>
     typealias Output = Tensor<Float32>
 
-    var l1, l2, l3: Dense<Float>
+    var l1, l2: Dense<Float>
 
     init(observationSize: Int, hiddenSize: Int) {
         l1 = Dense<Float>(
             inputSize: observationSize,
             outputSize: hiddenSize,
-            activation: relu,
+            activation: tanh,
             weightInitializer: heNormal()
         )
         l2 = Dense<Float>(
-            inputSize: hiddenSize,
-            outputSize: hiddenSize,
-            activation: relu,
-            weightInitializer: heNormal()
-        )
-        l3 = Dense<Float>(
             inputSize: hiddenSize,
             outputSize: 1,
             weightInitializer: heNormal()
@@ -84,7 +72,7 @@ struct CriticNetwork: Layer {
 
     @differentiable
     func callAsFunction(_ input: Input) -> Output {
-        return input.sequenced(through: l1, l2, l3)
+        return input.sequenced(through: l1, l2)
     }
 }
 

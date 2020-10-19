@@ -16,8 +16,6 @@ struct DiagGaussianProbabilityDistribution: DifferentiableDistribution, KeyPathI
     var mean: Tensor<Float32>
     var logstd: Tensor<Float32>
     var std: Tensor<Float32>
-    var actions: Tensor<Float32>
-    var sigmas: Tensor<Float32>
 
     /**
     Probability distributions from multivariate Gaussian input
@@ -27,18 +25,12 @@ struct DiagGaussianProbabilityDistribution: DifferentiableDistribution, KeyPathI
     @inlinable
     @differentiable(wrt: flat)
     init(flat: Tensor<Float32>){
-        //print(flat)
         self.flat = flat
+        
         let x = flat.split(count: 2, alongAxis: flat.shape.count - 1)
-        self.actions = x[0]
-        //print(actions)
-        self.sigmas = x[1]
-        //print(sigmas)
-        self.mean = actions.mean().reshaped(to: TensorShape(1))
-        //print(mean)
-        self.std = sigmas.mean().reshaped(to: TensorShape(1))
-        //print(std)
-        self.logstd = log(std)
+        self.mean = x[0]
+        self.logstd = x[1]
+        self.std = exp(self.logstd)
 }
     
     func flatparam() -> Tensor<Float32> { self.flat }
@@ -47,15 +39,14 @@ struct DiagGaussianProbabilityDistribution: DifferentiableDistribution, KeyPathI
     func mode() -> Tensor<Float32> { self.mean }
 
     @inlinable
-    @noDerivative
+    @differentiable
     func neglogp(of x: Tensor<Float32>) -> Tensor<Float32> {
-//        let x1: Tensor<Float32> = exp(-0.5 * pow(((x - self.mean) / self.std),2))
-//        let x2: Tensor<Float32> = self.std * sqrt(2 * Float32.pi)
-//        return log(x1/x2 + 1e-5)
-        let x1 =  0.5 * ( ((x - self.mean) / self.std ).squared()).sum(alongAxes: -1)
-        let x2 =  0.5 * log(2.0 * Float32.pi)
-        let x3 = self.logstd.sum(alongAxes: -1)
-        return x1 + x2 + x3
+        let nDims = Float32(flat.shape[0]/2)
+        let mse =  0.5 * ( ((x - self.mean) / self.std ).squared()).sum(alongAxes: -1)
+        let sigmaTrace = logstd.sum(alongAxes: -1)
+        let log2pi = 0.5 * nDims * log(2.0 * Float32.pi)
+        let logLikelihood = mse + sigmaTrace + log2pi
+        return logLikelihood
     }
     
     func logProbability(of value: Tensor<Float32>) -> Tensor<Float> {
@@ -78,6 +69,10 @@ struct DiagGaussianProbabilityDistribution: DifferentiableDistribution, KeyPathI
     }
 
     @inlinable
-    func sample() -> Tensor<Float32> { self.mean + self.std * Tensor<Float32>(randomNormal: self.mean.shape) }
-
+    @differentiable(wrt: self)
+    func sample() -> Tensor<Float32> {
+        //print("mean, std (\(flat))")
+        return self.mean + self.std * Tensor<Float32>(randomNormal: self.mean.shape)
+        //.replacing(with: Tensor(zeros: ret.shape), where: ret.isNaN).clipped(min: -1, max: 1) }
+    }
 }

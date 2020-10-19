@@ -141,7 +141,6 @@ open class UnityToGymWrapper {
         if let vecObsSize = self.getVecObsSize(), vecObsSize > 0 {
             let high = Tensor<Float32>(repeating: Float32.infinity, shape: [Int(vecObsSize)])
             listSpaces.append(Box(lowerBound: -high, upperBound: high))
-            print(high)
         }
 //        if self.allowMultipleObs {
 //            self.observationSpace = Tuple(listSpaces)

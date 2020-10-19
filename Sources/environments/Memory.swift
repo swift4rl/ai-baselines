@@ -26,6 +26,7 @@ struct PPOMemory {
     var actions: [Tensor<Float32>] = []
     /// The rewards that the agent received from the environment after taking
     /// an action.
+    var values: [Tensor<Float32>] = []
     var rewards: [Float] = []
     /// The log probabilities of the chosen action.
     var logProbs: [Tensor<Float32>] = []
@@ -34,9 +35,10 @@ struct PPOMemory {
 
     init() {}
 
-    mutating func append(state: Tensor<Float32>, action: Tensor<Float32>, reward: Float, logProb: Tensor<Float32>, isDone: Bool) {
+    mutating func append(state: Tensor<Float32>, action: Tensor<Float32>, value: Tensor<Float32>, reward: Float, logProb: Tensor<Float32>, isDone: Bool) {
         states.append(state)
         actions.append(action)
+        values.append(value)
         logProbs.append(logProb)
         rewards.append(reward)
         isDones.append(isDone)
@@ -45,6 +47,7 @@ struct PPOMemory {
     mutating func removeAll() {
         states.removeAll()
         actions.removeAll()
+        values.removeAll()
         rewards.removeAll()
         logProbs.removeAll()
         isDones.removeAll()
