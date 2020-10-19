@@ -161,9 +161,8 @@ open class PPOAgent {
             // Optimize value network (critic)
             let (criticLoss, criticGradients) = valueWithGradient(at: self.actorCritic.criticNetwork) { criticNetwork -> Tensor<Float> in
                 let stateValues = criticNetwork(oldStates).flattened()
-                let loss: Tensor<Float> = 0.5 * pow(stateValues - tfRewards, 2)
-
-                return loss.mean()
+                let loss: Tensor<Float> = (stateValues - tfRewards).squared().mean()
+                return loss
             }
             self.criticOptimizer.update(&self.actorCritic.criticNetwork, along: criticGradients)
             criticLosses.append(criticLoss.scalarized())

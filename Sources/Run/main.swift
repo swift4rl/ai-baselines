@@ -59,7 +59,7 @@ let entropyCoefficient: Float = 0.0001
 /// early if maximum score is achieved consecutively 10 times.
 let maxEpisodes: Int = 10000
 /// Maximum timestep per episode.
-let maxTimesteps: Int = 300
+let maxTimesteps: Int = 10000
 /// The length of the trajectory segment. Denoted T in the PPO paper.
 let updateTimestep: Int = 100
 
@@ -93,9 +93,8 @@ var episodeReturns: [Float] = []
 var maxEpisodeReturn: Float = -1
 for episodeIndex in 0..<maxEpisodes {
     if case var .SingleStepResult(state, _, _, _) = try env.reset() {
-        var isDone: Bool
+        var isDone: Bool = false
         var reward: Float
-        episodeReturns.removeAll()
         for timeStep in 0..<maxTimesteps {
             timestep += 1
             state = state.reshaped(to: TensorShape(1, state.shape[0]))
@@ -117,9 +116,10 @@ for episodeIndex in 0..<maxEpisodes {
                 break
             }
         }
-        if episodeIndex % 10 == 0 {
-            let avgEpisodeReturns = episodeReturns.suffix(10).reduce(0, +) / 10.0
+        if episodeReturns.count == 10 {
+            let avgEpisodeReturns = episodeReturns.reduce(0, +) / 10.0
             print(String(format: "Average returns of last 10 episodes: %.2f", avgEpisodeReturns))
+            episodeReturns.removeAll()
         }
     }
         
