@@ -37,9 +37,9 @@ let actionCount: Int = 2
 /// The !size of the hidden layer of the 2-layer actor network and critic network. The actor network
 /// has the shape observationSize - hiddenSize - actionCount, and the critic network has the same
 /// shape but with a single output node.
-let hiddenSize: Int = 64
+let hiddenSize: Int = 128
 /// The learning rate for both the actor and the critic.
-let learningRate: Float = 0.05
+let learningRate: Float = 0.0005
 /// The discount factor. This measures how much to "discount" the future rewards
 /// that the agent will receive. The discount factor must be from 0 to 1
 /// (inclusive). Discount factor of 0 means that the agent only considers the
@@ -49,19 +49,19 @@ let learningRate: Float = 0.05
 let discount: Float = 0.99
 /// Number of epochs to run minibatch updates once enough trajectory segments are collected. Denoted
 /// K in the PPO paper.
-let epochs: Int = 40
+let epochs: Int = 50
 /// Parameter to clip the probability ratio. The ratio is clipped to [1-clipEpsilon, 1+clipEpsilon].
 /// Denoted epsilon in the PPO paper.
 let clipEpsilon: Float = 0.1
 /// Coefficient for the entropy bonus added to the objective. Denoted c_2 in the PPO paper.
-let entropyCoefficient: Float = 0.0001
+let entropyCoefficient: Float = 0.01
 /// Maximum number of episodes to train the agent. The training is terminated
 /// early if maximum score is achieved consecutively 10 times.
 let maxEpisodes: Int = 10000
 /// Maximum timestep per episode.
 let maxTimesteps: Int = 10000
 /// The length of the trajectory segment. Denoted T in the PPO paper.
-let updateTimestep: Int = 100
+let updateEpisode: Int = 25
 
 
 var agent: PPOAgent = PPOAgent(
@@ -87,38 +87,31 @@ file_writer.set_as_default()
 
 
 // Training loop
-var timestep: Int = 0
 var episodeReturn: Float = 0
 var episodeReturns: [Float] = []
 var maxEpisodeReturn: Float = -1
-for episodeIndex in 0..<maxEpisodes {
+for episode in 1..<maxEpisodes {
     if case var .SingleStepResult(state, _, _, _) = try env.reset() {
         var isDone: Bool = false
         var reward: Float
-        for timeStep in 0..<maxTimesteps {
-            timestep += 1
+        for _ in 1..<maxTimesteps {
             state = state.reshaped(to: TensorShape(1, state.shape[0]))
             (state, isDone, reward) = try agent.step(env: env, state: state)
-
-            if timestep % updateTimestep == 0 {
-                print("training...")
-                agent.update()
-                timestep = 0
-            }
-
             episodeReturn += reward
             if isDone {
                 episodeReturns.append(episodeReturn)
-//                print(String(format: "Episode: %d | Return: %.2f | Timesteps: %d", episodeIndex, episodeReturn, timeStep))
-//                tf.summary.scalar("episode_return", data: episodeReturn, step: episodeIndex)
-//                tf.summary.scalar("episode_timesteps", data: timeStep, step: episodeIndex)
                 episodeReturn = 0
                 break
             }
         }
-        if episodeReturns.count == 10 {
-            let avgEpisodeReturns = episodeReturns.reduce(0, +) / 10.0
-            print(String(format: "Average returns of last 10 episodes: %.2f", avgEpisodeReturns))
+        if episode % updateEpisode == 0 {
+            print("training... episode: \(episode) total episode: \(episodeReturns.count)")
+            agent.update()
+            let avgEpisodeReturns = episodeReturns.reduce(0, +) / Float32(updateEpisode)
+            let max = episodeReturns.max()!
+            let min = episodeReturns.min()!
+            let maxIndex = episodeReturns.firstIndex(of: max)!
+            print("avg return: \(avgEpisodeReturns) max: \(max), min: \(min), max index: \(maxIndex)")
             episodeReturns.removeAll()
         }
     }

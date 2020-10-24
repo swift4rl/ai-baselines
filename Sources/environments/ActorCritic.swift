@@ -22,7 +22,7 @@ struct ActorNetwork: Layer {
     typealias Input = Tensor<Float32>
     typealias Output = Tensor<Float32>
 
-    var l1, l2: Dense<Float>
+    var l1, l2, l3: Dense<Float>
 
     init(observationSize: Int, hiddenSize: Int, actionCount: Int) {
         l1 = Dense<Float>(
@@ -33,6 +33,12 @@ struct ActorNetwork: Layer {
         )
         l2 = Dense<Float>(
             inputSize: hiddenSize,
+            outputSize: hiddenSize,
+            activation: tanh,
+            weightInitializer: heNormal()
+        )
+        l3 = Dense<Float>(
+            inputSize: hiddenSize,
             outputSize: actionCount,
             activation: tanh,
             weightInitializer: heNormal()
@@ -41,7 +47,7 @@ struct ActorNetwork: Layer {
 
     @differentiable
     func callAsFunction(_ input: Input) -> Output {
-        return input.sequenced(through: l1, l2)
+        return input.sequenced(through: l1, l2, l3)
     }
 }
 
@@ -54,7 +60,7 @@ struct CriticNetwork: Layer {
     typealias Input = Tensor<Float32>
     typealias Output = Tensor<Float32>
 
-    var l1, l2: Dense<Float>
+    var l1, l2, l3: Dense<Float>
 
     init(observationSize: Int, hiddenSize: Int) {
         l1 = Dense<Float>(
@@ -65,6 +71,12 @@ struct CriticNetwork: Layer {
         )
         l2 = Dense<Float>(
             inputSize: hiddenSize,
+            outputSize: hiddenSize,
+            activation: tanh,
+            weightInitializer: heNormal()
+        )
+        l3 = Dense<Float>(
+            inputSize: hiddenSize,
             outputSize: 1,
             weightInitializer: heNormal()
         )
@@ -72,7 +84,7 @@ struct CriticNetwork: Layer {
 
     @differentiable
     func callAsFunction(_ input: Input) -> Output {
-        return input.sequenced(through: l1, l2)
+        return input.sequenced(through: l1, l2, l3)
     }
 }
 
@@ -82,7 +94,7 @@ struct CriticNetwork: Layer {
 /// they are separated networks.
 struct ActorCritic: Layer {
     typealias Input = Tensor<Float32>
-    typealias Output = DiagGaussianProbabilityDistribution
+    typealias Output = SquashedDiagGaussianDistribution
     
     var actorNetwork: ActorNetwork
     var criticNetwork: CriticNetwork
@@ -102,6 +114,6 @@ struct ActorCritic: Layer {
     @differentiable
     func callAsFunction(_ state: Input) -> Output {
         precondition(state.rank == 2, "The input must be 2-D ([batch size, state size]).")
-        return DiagGaussianProbabilityDistribution(flat: self.actorNetwork(state).flattened())
+        return SquashedDiagGaussianDistribution(flat: self.actorNetwork(state).flattened())
     }
 }
