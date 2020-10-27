@@ -14,33 +14,19 @@
 
 import TensorFlow
 
-/// The actor network that returns a probability for each action.
-///
-/// Actor-Critic methods has an actor network and a critic network. The actor network is the policy
-/// of the agent: it is used to select actions.
 struct ActorNetwork: Layer {
     typealias Input = Tensor<Float32>
     typealias Output = Tensor<Float32>
 
     var l1, l2, l3: Dense<Float>
 
-    init(observationSize: Int, hiddenSize: Int, actionCount: Int) {
-        l1 = Dense<Float>(
-            inputSize: observationSize,
-            outputSize: hiddenSize,
-            activation: tanh,
-            weightInitializer: heNormal()
-        )
-        l2 = Dense<Float>(
-            inputSize: hiddenSize,
-            outputSize: hiddenSize,
-            activation: tanh,
-            weightInitializer: heNormal()
-        )
+    init(l1: Dense<Float>, l2: Dense<Float>, hiddenSize: Int, actionCount: Int) {
+        self.l1 = l1
+        self.l2 = l2
         l3 = Dense<Float>(
             inputSize: hiddenSize,
             outputSize: actionCount,
-            activation: tanh,
+            activation: identity,
             weightInitializer: heNormal()
         )
     }
@@ -51,33 +37,19 @@ struct ActorNetwork: Layer {
     }
 }
 
-/// The critic network that returns the estimated value of each action, given a state.
-///
-/// Actor-Critic methods has an actor network and a critic network. The critic network is used to
-/// estimate the value of the state-action pair. With these value functions, the critic can evaluate
-/// the actions made by the actor.
 struct CriticNetwork: Layer {
     typealias Input = Tensor<Float32>
     typealias Output = Tensor<Float32>
 
     var l1, l2, l3: Dense<Float>
 
-    init(observationSize: Int, hiddenSize: Int) {
-        l1 = Dense<Float>(
-            inputSize: observationSize,
-            outputSize: hiddenSize,
-            activation: tanh,
-            weightInitializer: heNormal()
-        )
-        l2 = Dense<Float>(
-            inputSize: hiddenSize,
-            outputSize: hiddenSize,
-            activation: tanh,
-            weightInitializer: heNormal()
-        )
+    init(l1: Dense<Float>, l2: Dense<Float>, hiddenSize: Int) {
+        self.l1 = l1
+        self.l2 = l2
         l3 = Dense<Float>(
             inputSize: hiddenSize,
             outputSize: 1,
+            activation: identity,
             weightInitializer: heNormal()
         )
     }
@@ -88,25 +60,35 @@ struct CriticNetwork: Layer {
     }
 }
 
-/// The actor-critic that contains actor and critic networks for action selection and evaluation.
-///
-/// Weight are often shared between the actor network and the critic network, but in this example,
-/// they are separated networks.
 struct ActorCritic: Layer {
     typealias Input = Tensor<Float32>
-    typealias Output = SquashedDiagGaussianDistribution
+    typealias Output = DiagGaussianProbabilityDistribution
     
     var actorNetwork: ActorNetwork
     var criticNetwork: CriticNetwork
 
     init(observationSize: Int, hiddenSize: Int, actionCount: Int) {
+        let l1 = Dense<Float>(
+            inputSize: observationSize,
+            outputSize: hiddenSize,
+            activation: swish,
+            weightInitializer: heNormal()
+        )
+        let l2 = Dense<Float>(
+            inputSize: hiddenSize,
+            outputSize: hiddenSize,
+            activation: swish,
+            weightInitializer: heNormal()
+        )
         self.actorNetwork = ActorNetwork(
-            observationSize: observationSize,
+            l1: l1,
+            l2: l2,
             hiddenSize: hiddenSize,
             actionCount: actionCount
         )
         self.criticNetwork = CriticNetwork(
-            observationSize: observationSize,
+            l1: l1,
+            l2: l2,
             hiddenSize: hiddenSize
         )
     }
@@ -114,6 +96,6 @@ struct ActorCritic: Layer {
     @differentiable
     func callAsFunction(_ state: Input) -> Output {
         precondition(state.rank == 2, "The input must be 2-D ([batch size, state size]).")
-        return SquashedDiagGaussianDistribution(flat: self.actorNetwork(state).flattened())
+        return DiagGaussianProbabilityDistribution(flat: self.actorNetwork(state).flattened())
     }
 }

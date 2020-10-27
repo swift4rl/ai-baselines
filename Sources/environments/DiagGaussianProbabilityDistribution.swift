@@ -29,7 +29,7 @@ struct DiagGaussianProbabilityDistribution: DifferentiableDistribution, KeyPathI
         
         let x = flat.split(count: 2, alongAxis: flat.shape.count - 1)
         self.mean = x[0]
-        self.logstd = x[1]
+        self.logstd = x[1].clipped(min: -20, max: 2)
         self.std = exp(self.logstd)
 }
     
@@ -40,7 +40,7 @@ struct DiagGaussianProbabilityDistribution: DifferentiableDistribution, KeyPathI
 
     @inlinable
     @differentiable
-    func neglogp(of x: Tensor<Float32>) -> Tensor<Float32> {
+    func neglogp(of x: Tensor<Float32>) -> Tensor<Float32> { 
         let nDims = Float32(flat.shape[0]/2)
         let mse =  0.5 * ( ((x - self.mean) / self.std ).squared()).sum(alongAxes: -1)
         let sigmaTrace = logstd.sum(alongAxes: -1)
@@ -73,7 +73,7 @@ struct DiagGaussianProbabilityDistribution: DifferentiableDistribution, KeyPathI
     @differentiable(wrt: self)
     func sample() -> Tensor<Float32> {
         //print("mean, std (\(flat))")
-        return self.mean + self.std * Tensor<Float32>(randomNormal: self.mean.shape)
+        return (self.mean + self.std * Tensor<Float32>(randomNormal: self.mean.shape)).clipped(min: -3, max: 3)
         //.replacing(with: Tensor(zeros: ret.shape), where: ret.isNaN).clipped(min: -1, max: 1) }
     }
 }
@@ -108,12 +108,13 @@ struct SquashedDiagGaussianDistribution: DifferentiableDistribution, KeyPathIter
     @inlinable
     @differentiable
     func neglogp(of x: Tensor<Float32>) -> Tensor<Float32> {
+        print("logstd \(logstd)")
         let nDims = Float32(flat.shape[0]/2)
-        let mse =  0.5 * ( ((x - self.mean) / self.std ).squared()).sum(alongAxes: -1)
+        let mse =  0.5 * ( ((x - self.mean) / self.std + 1e-6 ).squared()).sum(alongAxes: -1)
         let sigmaTrace = logstd.sum(alongAxes: -1)
         let log2pi = 0.5 * nDims * log(2.0 * Float32.pi)
         let logLikelihood = mse + sigmaTrace + log2pi
-        return logLikelihood
+        return -logLikelihood
     }
     
     @differentiable

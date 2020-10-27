@@ -39,30 +39,31 @@ let actionCount: Int = 2
 /// shape but with a single output node.
 let hiddenSize: Int = 128
 /// The learning rate for both the actor and the critic.
-let learningRate: Float = 0.0005
+let learningRate: Float = 3.0e-4
 /// The discount factor. This measures how much to "discount" the future rewards
 /// that the agent will receive. The discount factor must be from 0 to 1
 /// (inclusive). Discount factor of 0 means that the agent only considers the
 /// immediate reward and disregards all future rewards. Discount factor of 1
 /// means that the agent values all rewards equally, no matter how distant
 /// in the future they may be. Denoted gamma in the PPO paper.
-let discount: Float = 0.99
+let discount: Float = 0.999
 /// Number of epochs to run minibatch updates once enough trajectory segments are collected. Denoted
 /// K in the PPO paper.
-let epochs: Int = 50
+let epochs: Int = 3
 /// Parameter to clip the probability ratio. The ratio is clipped to [1-clipEpsilon, 1+clipEpsilon].
 /// Denoted epsilon in the PPO paper.
-let clipEpsilon: Float = 0.1
+let clipEpsilon: Float = 0.2
 /// Coefficient for the entropy bonus added to the objective. Denoted c_2 in the PPO paper.
-let entropyCoefficient: Float = 0.01
+let entropyCoefficient: Float = 5.0e-3
 /// Maximum number of episodes to train the agent. The training is terminated
 /// early if maximum score is achieved consecutively 10 times.
-let maxEpisodes: Int = 10000
+let maxEpisodes: Int = Int.max
 /// Maximum timestep per episode.
-let maxTimesteps: Int = 10000
+let maxTimesteps: Int = Int.max
 /// The length of the trajectory segment. Denoted T in the PPO paper.
-let updateEpisode: Int = 25
+let updateTimestep = 10240
 
+let nMiniBatches = 5
 
 var agent: PPOAgent = PPOAgent(
     observationSize: observationSize,
@@ -72,7 +73,9 @@ var agent: PPOAgent = PPOAgent(
     discount: discount,
     epochs: epochs,
     clipEpsilon: clipEpsilon,
-    entropyCoefficient: entropyCoefficient
+    entropyCoefficient: entropyCoefficient,
+    nSteps: updateTimestep,
+    nMiniBatches: nMiniBatches
 )
 
 // Sets up tensorboard form python, since its not int swift tensorflow api yet
@@ -90,6 +93,7 @@ file_writer.set_as_default()
 var episodeReturn: Float = 0
 var episodeReturns: [Float] = []
 var maxEpisodeReturn: Float = -1
+var stepCount = 0
 for episode in 1..<maxEpisodes {
     if case var .SingleStepResult(state, _, _, _) = try env.reset() {
         var isDone: Bool = false
@@ -97,25 +101,28 @@ for episode in 1..<maxEpisodes {
         for _ in 1..<maxTimesteps {
             state = state.reshaped(to: TensorShape(1, state.shape[0]))
             (state, isDone, reward) = try agent.step(env: env, state: state)
+            stepCount += 1
             episodeReturn += reward
+            if stepCount % updateTimestep == 0 {
+                print("training... episode: \(episode) total episode: \(episodeReturns.count)")
+                agent.update()
+                stepCount = 0
+            }
             if isDone {
                 episodeReturns.append(episodeReturn)
                 episodeReturn = 0
                 break
             }
         }
-        if episode % updateEpisode == 0 {
-            print("training... episode: \(episode) total episode: \(episodeReturns.count)")
-            agent.update()
-            let avgEpisodeReturns = episodeReturns.reduce(0, +) / Float32(updateEpisode)
-            let max = episodeReturns.max()!
-            let min = episodeReturns.min()!
-            let maxIndex = episodeReturns.firstIndex(of: max)!
-            print("avg return: \(avgEpisodeReturns) max: \(max), min: \(min), max index: \(maxIndex)")
-            episodeReturns.removeAll()
-        }
     }
-        
+    if episode != 0 && episode % 10 == 0 {
+        let avgEpisodeReturns = episodeReturns.reduce(0, +) / Float32(episodeReturns.count)
+        let max = episodeReturns.max()!
+        let min = episodeReturns.min()!
+        let maxIndex = episodeReturns.firstIndex(of: max)!
+        print("avg return: \(avgEpisodeReturns) max: \(max), min: \(min), max index: \(maxIndex)")
+        episodeReturns.removeAll()
+    }
 }
 
 try env.close()
