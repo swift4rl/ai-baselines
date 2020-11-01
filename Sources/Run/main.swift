@@ -15,6 +15,8 @@ let actionCount: Int = 2
 /// The !size of the hidden layer of the 2-layer actor network and critic network. The actor network
 /// has the shape observationSize - hiddenSize - actionCount, and the critic network has the same
 /// shape but with a single output node.
+
+let hiddenSize: Int = 128
 /// The learning rate for both the actor and the critic.
 let learningRate: Float = 3.0e-4
 /// The discount factor. This measures how much to "discount" the future rewards
@@ -26,6 +28,7 @@ let learningRate: Float = 3.0e-4
 let discount: Float = 0.99
 /// Number of epochs to run minibatch updates once enough trajectory segments are collected. Denoted
 /// K in the PPO paper.
+let epochs: Int = 10
 /// Parameter to clip the probability ratio. The ratio is clipped to [1-clipEpsilon, 1+clipEpsilon].
 /// Denoted epsilon in the PPO paper.
 let clipEpsilon: Float = 0.2
