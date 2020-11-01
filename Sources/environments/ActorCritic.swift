@@ -26,7 +26,7 @@ struct ActorNetwork: Layer {
         l3 = Dense<Float>(
             inputSize: hiddenSize,
             outputSize: actionCount,
-            activation: identity,
+            activation: tanh,
             weightInitializer: heNormal()
         )
     }
@@ -49,7 +49,7 @@ struct CriticNetwork: Layer {
         l3 = Dense<Float>(
             inputSize: hiddenSize,
             outputSize: 1,
-            activation: identity,
+            activation: tanh,
             weightInitializer: heNormal()
         )
     }

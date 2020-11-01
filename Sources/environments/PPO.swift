@@ -14,37 +14,19 @@
 
 import TensorFlow
 import environments
-/// Agent that uses the Proximal Policy Optimization (PPO).
-///
-/// Proximal Policy Optimization is an algorithm that trains an actor (policy) and a critic (value
-/// function) using a clipped objective function. The clipped objective function simplifies the
-/// update equation from its predecessor Trust Region Policy Optimization (TRPO). For more
-/// information, check Proximal Policy Optimization Algorithms (Schulman et al., 2017).
-open class PPOAgent {
-    // Cache for trajectory segments for minibatch updates.
-    var trajectory: Trajectory
-    /// The learning rate for both the actor and the critic.
-    let learningRate: Float
-    /// The discount factor that measures how much to weight to give to future
-    /// rewards when calculating the action value.
-    let discount: Float
-    /// Number of epochs to run minibatch updates once enough trajectory segments are collected.
-    let epochs: Int
-    /// Parameter to clip the probability ratio.
-    let clipEpsilon: Float
-    /// Coefficient for the entropy bonus added to the objective.
-    let entropyCoefficient: Float
-    
-    let valueLossCoefficient: Float32
-    
-    let maxGradNorm: Float32
-    
-    let lam: Float32
 
+open class PPO: Model {
+    var trajectory: Trajectory
+    let learningRate: Float
+    let discount: Float
+    let epochs: Int
+    let clipEpsilon: Float
+    let entropyCoefficient: Float
+    let valueLossCoefficient: Float32
+    let maxGradNorm: Float32
+    let lam: Float32
     let nSteps: Int
-    
     let nMiniBatches: Int
-    
     var actorCritic: ActorCritic
     var oldActorCritic: ActorCritic
     var actorOptimizer: Adam<ActorNetwork>
@@ -86,43 +68,58 @@ open class PPOAgent {
         self.criticOptimizer = Adam(for: actorCritic.criticNetwork, learningRate: learningRate)
     }
 
-    open func step(env: UnityToGymWrapper, state: Tensor<Float32>) throws -> (Tensor<Float32>, Bool, Float) {
+    public func predict(state: Tensor<Float32>) -> Tensor<Float32> {
         let dist: DiagGaussianProbabilityDistribution = oldActorCritic(state)
-        let action = dist.sample()
-        var ret: (Tensor<Float32>, Bool, Float)
-        let value = self.oldActorCritic.criticNetwork(state).flattened()
-        
-        if case let StepResult.SingleStepResult(observation, reward, done, _) = try env.step(action) {
+        return dist.sample()
+    }
+    
+    public func updateTrajectory(action: Tensor<BehaviorSpecContinousAction.Scalar>, observation: Observation<Float32>) {
+        if case let Observation.SingleObservation(state, reward, done, _) = observation {
             trajectory.append(
                 state: state,
                 action: action,
-                value: value,
                 reward: reward,
-                logProb: dist.neglogp(of: action),
                 isDone: done
             )
-            ret = (observation, done, reward)
-        } else {
-            throw UnityException.UnityEnvironmentException(reason: "error occred during step call")
         }
-        return ret
     }
 
     open func update() {
-        let returns = trajectory.returns(discount: self.discount, lam: self.lam)
+        let values = trajectory.states.map{ self.oldActorCritic.criticNetwork($0).flattened() }
+        let returns = trajectory.returns(discount: self.discount, lam: self.lam, values: values)
         Array(0..<self.nSteps).inBatches(of: self.nSteps / self.nMiniBatches).forEach({batch in
             let index = batch.shuffled()
             let ret = returns.scalars
-            update(using: self.trajectory.batch(index: index), rewards: Tensor(index.map{ret[$0]}))
+            let subsample = self.trajectory.batch(index: index)
+            let rewardsBatch = Tensor(index.map{ret[$0]})
+            let valuesBatch = Tensor(index.map{values[$0]})
+            update(using: subsample,
+                   rewards: rewardsBatch,
+                   values: valuesBatch)
         })
         trajectory.removeAll()
     }
     
-    func update(using traj: Trajectory, rewards: Tensor<Float32>) {
+    static func feedForward(with actorNetwork: ActorNetwork, for actions: Tensor<Float32>, given state: Tensor<Float32>) -> DiagGaussianProbabilityDistribution {
+        let sh = TensorShape(actions.shape[0])
+        let range = Tensor<Int32>(rangeFrom: 0, to: Int32(actions.shape[0]), stride: 1)
+        let zeros = Tensor<Int32>(zeros: sh)
+        let indices: Tensor<Int32> =
+            Tensor(stacking: [
+                range.concatenated(with: range),
+                zeros.concatenated(with: zeros),
+                zeros.concatenated(with: Tensor(ones: sh))
+            ], alongAxis: 1)
+
+        let actionProbs: Tensor<Float32> = actorNetwork(state).dimensionGathering(atIndices: indices)
+        return DiagGaussianProbabilityDistribution(flat: actionProbs)
+    }
+    
+    func update(using traj: Trajectory, rewards: Tensor<Float32>, values: Tensor<Float32>) {
         let oldStates: Tensor<Float32> = Tensor(traj.states)
         let oldActions: Tensor<Float32> = Tensor(traj.actions)
-        let oldLogProbs: Tensor<Float32> = Tensor(traj.logProbs).flattened()
-        let values: Tensor<Float32> = Tensor(traj.values).flattened()
+        let dist = Self.feedForward(with: oldActorCritic.actorNetwork, for: oldActions, given: oldStates)
+        let oldLogProbs = dist.neglogp(of: dist.sample())
         
         let returns = (rewards - rewards.mean()) / (rewards.standardDeviation() + 1e-10)
 
@@ -131,23 +128,11 @@ open class PPOAgent {
         for _ in 0..<epochs {
             // Optimize policy network (actor)
             var (actorLoss, actorGradients) = valueWithGradient(at: self.actorCritic.actorNetwork) { actorNetwork -> Tensor<Float32> in
-                let sh = TensorShape(oldActions.shape[0])
-                let range = Tensor<Int32>(rangeFrom: 0, to: Int32(oldActions.shape[0]), stride: 1)
-                let zeros = Tensor<Int32>(zeros: sh)
-                let tfIndices: Tensor<Int32> =
-                    Tensor(stacking: [
-                        range.concatenated(with: range),
-                        zeros.concatenated(with: zeros),
-                        zeros.concatenated(with: Tensor(ones: sh))
-                    ], alongAxis: 1)
-
-                let actionProbs: Tensor<Float32> = actorNetwork(oldStates).dimensionGathering(atIndices: tfIndices)
-                let dist = DiagGaussianProbabilityDistribution(flat: actionProbs)
-                
+                let dist = Self.feedForward(with: actorNetwork, for: oldActions, given: oldStates)
+                let logProbs = dist.neglogp(of: dist.sample())
                 let vpred = self.actorCritic.criticNetwork(oldStates).flattened()
                 let vpredclipped = values + (vpred - values).clipped(min: -self.clipEpsilon, max: self.clipEpsilon)
                 
-                let logProbs = dist.neglogp(of: dist.sample())
 //              let logProbs = dist.logProbability(of: dist.sample())
 //              print("oldActions \(oldActions)")
 //              print("oldValues \(oldValues)")

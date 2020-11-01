@@ -20,17 +20,9 @@
 import TensorFlow
 
 struct Trajectory {
-    /// The states that the agent observed.
     var states: [Tensor<Float32>] = []
-    /// The actions that the agent took.
     var actions: [Tensor<Float32>] = []
-    /// The rewards that the agent received from the environment after taking
-    /// an action.
-    var values: [Tensor<Float32>] = []
     var rewards: [Float] = []
-    /// The log probabilities of the chosen action.
-    var logProbs: [Tensor<Float32>] = []
-    /// The episode-terminal flag that the agent received after taking an action.
     var isDones: [Bool] = []
     
     var nSteps: Int
@@ -42,15 +34,11 @@ struct Trajectory {
     init(
         states: [Tensor<Float32>],
         actions: [Tensor<Float32>],
-        values: [Tensor<Float32>],
         rewards: [Float],
-        logProbs: [Tensor<Float32>],
         isDones: [Bool]) {
         self.states = states
         self.actions = actions
-        self.values = values
         self.rewards = rewards
-        self.logProbs = logProbs
         self.isDones = isDones
         self.nSteps = isDones.count
     }
@@ -58,14 +46,12 @@ struct Trajectory {
     public func batch(index: Array<Int>) -> Trajectory{
         return Trajectory(states: index.map{states[$0]},
                           actions: index.map{actions[$0]},
-                          values: index.map{values[$0]},
                           rewards: index.map{rewards[$0]},
-                          logProbs: index.map{logProbs[$0]},
                           isDones: index.map{isDones[$0]}
         )
     }
     
-public func returns(discount: Float32, lam: Float32) -> Tensor<Float32> {
+public func returns(discount: Float32, lam: Float32, values: [Tensor<Float32>]) -> Tensor<Float32> {
         var lastGaeLam: Float32 = 0
         var advantages = Array<Float32>(repeating: 0, count: nSteps)
         for step in (0 ..< self.rewards.count).reversed() {
@@ -73,16 +59,16 @@ public func returns(discount: Float32, lam: Float32) -> Tensor<Float32> {
             let nextValues: Float32
             if step == nSteps - 1 {
                 nextnonterminal = 1.0 - (self.isDones[nSteps - 1] ? 1.0 : 0.0)
-                nextValues = self.values[nSteps - 1].scalars[0]
+                nextValues = values[nSteps - 1].scalars[0]
             } else {
                 nextnonterminal = 1.0 - (self.isDones[step + 1] ? 1.0 : 0.0)
-                nextValues = self.values[step + 1].scalars[0]
+                nextValues = values[step + 1].scalars[0]
             }
-            let delta = self.rewards[step] + discount * nextValues * nextnonterminal - self.values[step].scalars[0]
+            let delta = self.rewards[step] + discount * nextValues * nextnonterminal - values[step].scalars[0]
             lastGaeLam = delta + discount * lam * nextnonterminal * lastGaeLam
             advantages[step] = lastGaeLam
         }
-        return Tensor<Float32>(advantages) + Tensor(self.values).flattened()
+        return Tensor<Float32>(advantages) + Tensor(values).flattened()
     }
     
     public func returns(discount: Float32) -> Tensor<Float32>{
@@ -98,11 +84,9 @@ public func returns(discount: Float32, lam: Float32) -> Tensor<Float32> {
         return Tensor<Float32>(rewards)
     }
     
-    mutating func append(state: Tensor<Float32>, action: Tensor<Float32>, value: Tensor<Float32>, reward: Float, logProb: Tensor<Float32>, isDone: Bool) {
+    mutating func append(state: Tensor<Float32>, action: Tensor<Float32>, reward: Float, isDone: Bool) {
         states.append(state)
         actions.append(action)
-        values.append(value)
-        logProbs.append(logProb)
         rewards.append(reward)
         isDones.append(isDone)
         self.nSteps += 1
@@ -111,9 +95,7 @@ public func returns(discount: Float32, lam: Float32) -> Tensor<Float32> {
     mutating func removeAll() {
         states.removeAll()
         actions.removeAll()
-        values.removeAll()
         rewards.removeAll()
-        logProbs.removeAll()
         isDones.removeAll()
         self.nSteps = 0
     }

@@ -42,13 +42,27 @@ open class SideChannelManager {
         }
     }
     
+    struct DebugData {
+        let x1: [UInt8]
+        let x2: [UInt8]
+        let x3: [UInt8]
+        let x4: [UInt8]
+        let x5: [UInt8]
+    }
+    static func toLittleEndain(uuid: UUID) -> Data {
+        let (u1,u2,u3,u4,u5,u6,u7,u8,u9,u10,u11,u12,u13,u14,u15,u16) = uuid.uuid
+        let data = Data([u1,u2,u3,u4,u5,u6,u7,u8,u9,u10,u11,u12,u13,u14,u15,u16])
+    
+        return Data(data[0..<4].reversed()) + Data(data[4..<6].reversed()) + Data(data[6..<8].reversed()) +  Data(data[8...])
+    }
+    
     func generateSideChannelMessages() -> Data {
         var result = ByteBuffer()
         for (channelId, channel) in self.sideChannelsDict {
             for message in channel.messageQueue {
                 var m = message
-                result.writeString(channelId.uuidString)
-                result.writeInteger(message.readableBytes)
+                result.writeData(Self.toLittleEndain(uuid: channelId))
+                result.writeInteger(Int32(message.readableBytes), endianness: .little)
                 result.writeBuffer(&m)
             }
             channel.messageQueue = []

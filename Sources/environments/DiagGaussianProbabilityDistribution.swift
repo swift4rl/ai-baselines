@@ -108,7 +108,6 @@ struct SquashedDiagGaussianDistribution: DifferentiableDistribution, KeyPathIter
     @inlinable
     @differentiable
     func neglogp(of x: Tensor<Float32>) -> Tensor<Float32> {
-        print("logstd \(logstd)")
         let nDims = Float32(flat.shape[0]/2)
         let mse =  0.5 * ( ((x - self.mean) / self.std + 1e-6 ).squared()).sum(alongAxes: -1)
         let sigmaTrace = logstd.sum(alongAxes: -1)

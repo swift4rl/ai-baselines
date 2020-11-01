@@ -10,51 +10,49 @@ import GRPC
 import NIO
 import Logging
 
-//TODO: consider GCD https://www.raywenderlich.com/5370-grand-central-dispatch-tutorial-for-swift-4-part-1-2
-//or https://gist.github.com/lattner/31ed37682ef1576b16bca1432ea9f782
+protocol UnityEnvironmentListener {
+    func onRLInitOutput(output: CommunicatorObjects_UnityOutputProto) -> CommunicatorObjects_UnityInputProto
+    func generateResetInput() -> CommunicatorObjects_UnityInputProto
+    func updateBehaviorSpecs(output: CommunicatorObjects_UnityOutputProto)
+    func updateState(output: CommunicatorObjects_UnityRLOutputProto) -> CommunicatorObjects_UnityInputProto
+}
+
 class UnityToExternalServicerImplementation : CommunicatorObjects_UnityToExternalProtoProvider {
     
     typealias Element = (CommunicatorObjects_UnityMessageProto, EventLoopPromise<CommunicatorObjects_UnityMessageProto>)
-    var firstMsg: EventLoopPromise<Bool>?
+    var unityEnvironmentListener: UnityEnvironmentListener
     
-    init(_ firstMsg: EventLoopPromise<Bool>?) {
-        self.firstMsg = firstMsg
-    }
-    
-    fileprivate lazy var q = [(CommunicatorObjects_UnityMessageProto, EventLoopPromise<CommunicatorObjects_UnityMessageProto>)]()
-    
-    func next(delete: Bool = true) -> Element? {
-        if q.isEmpty {
-            return nil
-        } else {
-            let first = q.first
-            if(delete){
-                q.remove(at: 0)
-            }
-            return first
-        }
-        
-    }
-    
-    func initialize(request: CommunicatorObjects_UnityMessageProto, context: StatusOnlyCallContext) ->
-    EventLoopFuture<CommunicatorObjects_UnityMessageProto> {
-        let p = context.eventLoop.makePromise(of: CommunicatorObjects_UnityMessageProto.self)
-        q.append((request,p))
-        self.firstMsg?.succeed(true)
-        self.firstMsg = Optional.none
-        return p.futureResult
+    init(listener: UnityEnvironmentListener) {
+        self.unityEnvironmentListener = listener
     }
     
     func exchange(request: CommunicatorObjects_UnityMessageProto, context: StatusOnlyCallContext) -> EventLoopFuture<CommunicatorObjects_UnityMessageProto> {
-        let p = context.eventLoop.makePromise(of: CommunicatorObjects_UnityMessageProto.self)
-        q.append((request,p))
-        self.firstMsg?.succeed(true)
-        self.firstMsg = Optional.none
-        return p.futureResult
+        //print("Request => \(request)")
+        var message = CommunicatorObjects_UnityMessageProto()
+        message.header.status=200
+        if request.unityOutput.hasRlInitializationOutput && request.unityOutput.rlInitializationOutput.brainParameters.isEmpty {
+            message.unityInput = unityEnvironmentListener.onRLInitOutput(output: request.unityOutput)
+            //print("Response => \(message)")
+            return context.eventLoop.makeSucceededFuture(message)
+        }
+        if !request.hasUnityOutput {
+            message.unityInput = self.unityEnvironmentListener.generateResetInput()
+            print("Response => \(message)")
+            return context.eventLoop.makeSucceededFuture(message)
+        }
+        
+        if request.unityOutput.hasRlInitializationOutput && !request.unityOutput.rlInitializationOutput.brainParameters.isEmpty {
+            unityEnvironmentListener.updateBehaviorSpecs(output: request.unityOutput)
+        }
+        
+        message.unityInput = unityEnvironmentListener.updateState(output: request.unityOutput.rlOutput)
+        //print("Response => \(message)")
+        return context.eventLoop.makeSucceededFuture(message)
+        
     }
 }
 
-public class RpcCommunicator: Communicator {
+public class RpcCommunicator {
     
     var workerId: Int = 0
     var host: String = "0.0.0.0"
@@ -66,16 +64,19 @@ public class RpcCommunicator: Communicator {
     var server: Server?
     var group: MultiThreadedEventLoopGroup
     let sleepInterval = 0.05
-    public required init(workerId: Int=0, port: Int=5005, group: MultiThreadedEventLoopGroup =  MultiThreadedEventLoopGroup(numberOfThreads: 1)) {
+    
+    required init(workerId: Int=0, port: Int=5005, group: MultiThreadedEventLoopGroup = MultiThreadedEventLoopGroup(numberOfThreads: 1), listener: UnityEnvironmentListener) {
         self.workerId = workerId
         self.port = port + workerId
-        self.provider = UnityToExternalServicerImplementation(group.next().makePromise())
-        
+        self.provider = UnityToExternalServicerImplementation(listener: listener)
+        self.group = group
+    }
+    
+    func startServer() {
         // Start the server and print its address once it has started.
         let s: EventLoopFuture<Server> = Server.insecure(group: group)
             .withServiceProviders([provider])
             .bind(host: host, port: port)
-        self.group = group
         
         s.map { s -> SocketAddress? in
             self.server = s
@@ -85,62 +86,16 @@ public class RpcCommunicator: Communicator {
             print("server started on port \(address!.port!)")
         }
         // TODO handle this properly
-        _ = try? s.wait()
-        
+        _ = try? s.flatMap{
+            $0.onClose
+        }.wait()
     }
     
-    func initialize(inputs: CommunicatorObjects_UnityInputProto) -> Optional<CommunicatorObjects_UnityOutputProto> {
-        
-        var message = CommunicatorObjects_UnityMessageProto()
-        message.header.status=200
-        message.unityInput = inputs
-        var m = self.provider.next()
-        while m == nil {
-            Thread.sleep(forTimeInterval: sleepInterval)
-            m = self.provider.next()
-        }
-        _ = try? self.provider.firstMsg?.futureResult.wait()
-        m?.1.succeed(message)
-        var n = self.provider.next(delete: false)
-        while n == nil {
-            Thread.sleep(forTimeInterval: sleepInterval)
-            n = self.provider.next(delete: false)
-        }
-        return m?.0.unityOutput
-    }
-    
-    func exchange(inputs: CommunicatorObjects_UnityInputProto) -> Optional<CommunicatorObjects_UnityOutputProto> {
-        var message = CommunicatorObjects_UnityMessageProto()
-        message.header.status = 200
-        message.unityInput = inputs
-        var m = self.provider.next()
-        while m == nil {
-            Thread.sleep(forTimeInterval: sleepInterval)
-            m = self.provider.next()
-        }
-        m?.1.succeed(message)
-        
-        m = self.provider.next(delete: false)
-        while m == nil {
-            Thread.sleep(forTimeInterval: sleepInterval)
-            m = self.provider.next(delete: false)
-        }
-        if m?.0.header.status != 200{
-            return Optional.none
-        }
-        return m?.0.unityOutput
-    }
-    
-    func close() {
-        if self.isOpen{
-            var message = CommunicatorObjects_UnityMessageProto()
-            message.header.status = 400
-            let m = self.provider.next()
-            m?.1.succeed(message)
-            server?.close().whenSuccess{ s in
-                self.isOpen = false
-            }
-            try! self.group.syncShutdownGracefully()
-        }
-    }
+//    func close() {
+//        if self.isOpen{
+//            var message = CommunicatorObjects_UnityMessageProto()
+//            message.header.status = 400
+//            try! self.group.syncShutdownGracefully()
+//        }
+//    }
 }
