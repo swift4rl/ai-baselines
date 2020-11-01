@@ -15,6 +15,7 @@ let actionCount: Int = 2
 /// The !size of the hidden layer of the 2-layer actor network and critic network. The actor network
 /// has the shape observationSize - hiddenSize - actionCount, and the critic network has the same
 /// shape but with a single output node.
+
 let hiddenSize: Int = 128
 /// The learning rate for both the actor and the critic.
 let learningRate: Float = 3.0e-4
