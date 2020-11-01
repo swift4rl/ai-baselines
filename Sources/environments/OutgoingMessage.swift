@@ -17,11 +17,11 @@ class OutgoingMessage {
     }
     
     func writeInt32(_ i: Int32) -> Void {
-        self.buffer.writeInteger(i)
+        self.buffer.writeInteger(i, endianness: .little)
     }
 
     func writeFloat32(_ f: Float32) -> Void{
-        self.buffer.writeInteger(f.bitPattern)
+        self.buffer.writeInteger(f.bitPattern, endianness: .little)
     }
 
     func writeFloat32List(_ floatList: [Float]) -> Void{
@@ -32,10 +32,10 @@ class OutgoingMessage {
     }
 
     func writeString(_ s: String) throws -> Void  {
-        let bytes = s.data(using: String.Encoding.ascii)!
-        let _s = String(data: bytes, encoding: String.Encoding.ascii)!
+        let bytes = s.data(using: String.Encoding.utf16)!
+        let _s = String(data: bytes, encoding: String.Encoding.utf16)!
         self.writeInt32(Int32(_s.count))
-        try buffer.writeString(_s, encoding: String.Encoding.ascii)
+        try buffer.writeString(_s, encoding: String.Encoding.utf16)
     }
 
     func setRawBytes(_ buffer: ByteBuffer) -> Void {

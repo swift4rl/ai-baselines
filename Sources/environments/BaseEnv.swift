@@ -13,6 +13,11 @@ import Version
 public typealias AgentId = Int32
 public typealias BehaviorName = String
 
+public enum Observation<T: TensorFlowNumeric>{
+    case SingleObservation(observation: Tensor<T>, reward: Float32, done: Bool, info:[String:AnyObject])
+    case MultiObservation(observation: [Tensor<T>], reward: Float32, done: Bool, info:[String:AnyObject])
+}
+
 protocol Steps {
     var obs: [Tensor<Float32>] { get set }
     var reward: Tensor<Float32> { get set }
@@ -348,88 +353,19 @@ struct Defaults {
     static let _PORT_COMMAND_LINE_ARG = "--mlagents-port"
 }
 
-public protocol UnityEnv {
+public protocol Model {
+    func predict(state: Tensor<Float32>) -> Tensor<Float32>
+    func updateTrajectory(action: Tensor<BehaviorSpecContinousAction.Scalar>, observation: Observation<Float32>)
+}
+
+open class BaseEnv: UnityEnvironmentListener {
     
     typealias BehaviorMapping = [BehaviorName: BehaviorSpecContinousAction]
     
-    var props: Props { get set }
-    
-    init()
-    init(filename: URL?,
-        workerId: Int ,
-        basePort: Int?,
-        seed: Int32,
-        noGraphics: Bool,
-        timeoutWait: Int,
-        additionalArgs: [String]?,
-        sideChannels: [SideChannel]?,
-        logFolder: String?
-        )
-    
-    /// Signals the environment that it must move the simulation forward
-    /// by one step.
-    func step() throws -> Void
-    
-    /// Signals the environment that it must reset the simulation
-    func reset() throws -> Void
-    
-    /// Signals the environment that it must close.
-    func close() throws -> Void
-    
-    /**
-     Returns a Mapping from behavior names to behavior specs.
-     Agents grouped under the same behavior name have the same action and
-     observation specs, and are expected to behave similarly in the
-     environment.
-     Note that new keys can be added to this mapping as new policies are instantiated.
-     */
-    var behaviorSpecs: BehaviorMapping { get }
-    
-    /**
-     Sets the action for all of the agents in the simulation for the next
-     step. The Actions must be in the same order as the order received in
-     the DecisionSteps.
-     - Parameters:
-        - behaviorName: The name of the behavior the agents are part of
-        - action: A two dimensional Tensor corresponding to the action
-     (either int or float)
-     */
-    func setActions(behaviorName: BehaviorName, action: Tensor<BehaviorSpecContinousAction.Scalar>) throws -> Void
-    
-    /**
-    Sets the action for one of the agents in the simulation for the next
-    step.
-     - Parameters:
-        - behaviorName: The name of the behavior the agent is part of
-        - agentId: The id of the agent the action is set for
-        - action: A one dimensional Tensor corresponding to the action
-    (either int or float)
-    */
-    func setActionForAgent(behaviorName: String, agentId: AgentId, action: Tensor<BehaviorSpecContinousAction.Scalar>) throws -> Void
-        
-
-    /**
-     Retrieves the steps of the agents that requested a step in the
-     simulation.
-      - Parameters:
-        - behaviorName: The name of the behavior the agents are part of
-      - Returns: A tuple containing :
-        - A DecisionSteps NamedTuple containing the observations,
-      the rewards, the agent ids and the action masks for the Agents
-      of the specified behavior. These Agents need an action this step.
-        - A TerminalSteps NamedTuple containing the observations,
-      rewards, agent ids and interrupted flags of the agents that had their
-      episode terminated last step.
-     */
-    func getSteps(behaviorName: BehaviorName) throws -> (DecisionSteps, TerminalSteps)?
-
-}
-
-open class BaseEnv: UnityEnv {
     public var props: Props
     
-    required public init(){
-        self.props = Props()
+    required public init(model: Model){
+        self.props = Props(model: model)
     }
     
     public var port: Int {
@@ -437,13 +373,8 @@ open class BaseEnv: UnityEnv {
         set { props.port = newValue }
     }
     
-    public var behaviorSpecs: BehaviorMapping {
+    var behaviorSpecs: BehaviorMapping {
         get { return props.envSpecs }
-    }
-    
-    var isFirstMessage: Bool {
-        get { return props.isFirstMessage }
-        set { props.isFirstMessage = newValue }
     }
     
     var loaded: Bool {
@@ -480,6 +411,23 @@ open class BaseEnv: UnityEnv {
         get { return props.communicator }
         set { props.communicator = newValue }
     }
+    
+    var gameOver: Bool {
+        get { return props.gameOver }
+        set { props.gameOver = newValue }
+    }
+    
+    var allowMultipleObs: Bool {
+        get { return props.allowMultipleObs }
+        set { props.allowMultipleObs = newValue }
+    }
+    
+    var model: Model {
+        get { return props.model }
+        set { props.model = newValue }
+    }
+    
+    var onNext: ((_ model: Model, _ reward: Float32, _ isDone: Bool) -> Void)? = Optional.none
     
     static var logger: Logger {
         get { return Defaults.logger}
@@ -535,19 +483,19 @@ open class BaseEnv: UnityEnv {
 
     required public convenience init(
         filename: URL?,
+        model: Model,
         workerId: Int = 0,
         basePort: Int?,
-        seed: Int32 = 0,
         noGraphics: Bool = false,
         timeoutWait: Int = 60,
         additionalArgs: [String]? = Optional.none,
         sideChannels: [SideChannel]? = Optional.none,
         logFolder: String? = Optional.none
         ) {
-        self.init()
+        self.init(model: model)
         props.port = Defaults.DEFAULT_EDITOR_PORT
         props.sideChannelManager = try? SideChannelManager(sideChannels: sideChannels)
-        props.communicator = RpcCommunicator(workerId: workerId, port: port)
+        props.communicator = RpcCommunicator(workerId: workerId, port: port, listener: self)
         if let filename = filename {
             var args: [String] = []
             if props.noGraphics {
@@ -566,77 +514,37 @@ open class BaseEnv: UnityEnv {
             })
         }
         props.loaded = true
+    }
+    
+    func onRLInitOutput(output: CommunicatorObjects_UnityOutputProto) -> CommunicatorObjects_UnityInputProto {
+        let unityComVer = output.rlInitializationOutput.communicationVersion
+        let unityPackageVersion = output.rlInitializationOutput.packageVersion
+           if unityComVer != "" && unityPackageVersion != "" &&
+            !Self.checkCommunicationCompatibility(unityComVer: unityComVer, swiftApiVersion: Defaults.API_VERSION, unityPackageVersion: unityPackageVersion){
+            try? Self.raiseVersionException(unityComVer: unityComVer)
+        }
         var rlInitParametersIn = CommunicatorObjects_UnityRLInitializationInputProto()
-        rlInitParametersIn.seed = seed
+        rlInitParametersIn.seed = 0
         rlInitParametersIn.communicationVersion = Defaults.API_VERSION
         rlInitParametersIn.packageVersion = "0.20.0"
         rlInitParametersIn.capabilities = Self.getCapabilitiesProto()
-        let acaOutput = sendAcademyParameters(initParameters: rlInitParametersIn)
-        let acaParams = acaOutput?.rlInitializationOutput
-        
-        if let unityComVer = acaParams?.communicationVersion,
-           let unityPackageVersion = acaParams?.packageVersion,
-           !Self.checkCommunicationCompatibility(unityComVer: unityComVer, swiftApiVersion: Defaults.API_VERSION, unityPackageVersion: unityPackageVersion){
-            try? Self.raiseVersionException(unityComVer: unityComVer)
-        }
-        props.isFirstMessage = true
-        if let output = acaOutput {
-            updateBehaviorSpecs(output: output)
-        }
-    }
-    
-    public func step() throws -> Void {
-        if props.isFirstMessage {
-            return try reset()
-        }
-        if !props.loaded {
-            throw UnityException.UnityEnvironmentException(reason: "No Unity environment is loaded.")
-        }
-        for groupName in props.envSpecs.keys {
-            if !(props.envActions.keys.contains(groupName)) {
-                var nAgents = 0
-                if props.envState.keys.contains(groupName){
-                    nAgents = envState[groupName]?.0.len() ?? 0
-                }
-                props.envActions[groupName] = props.envSpecs[groupName]?.createEmptyAction(nAgents: nAgents)
-            }
-        }
-        let stepInput = generateStepInput(vectorAction: props.envActions)
-        // todo: measure time here
-        if let outputs = communicator?.exchange(inputs: stepInput) {
-            updateBehaviorSpecs(output: outputs)
-            let rlOutput = outputs.rlOutput
-            try updateState(output: rlOutput)
-            props.envActions.removeAll()
-        } else {
-            throw UnityException.UnityCommunicatorStoppedException(reason: "Communicator has exited.")
-        }
-    }
-    
-    public func reset() throws -> Void {
-        if loaded {
-            if let outputs = communicator?.exchange(inputs: generateResetInput()){
-                updateBehaviorSpecs(output: outputs)
-                let rlOutput = outputs.rlOutput
-                try updateState(output: rlOutput)
-                props.isFirstMessage = false
-                props.envActions.removeAll()
-            } else {
-                throw UnityException.UnityCommunicatorStoppedException(reason: "Communicator has exited.")
-            }
-        } else{
-            throw UnityException.UnityEnvironmentException(reason: "No Unity environment is loaded.")
-        }
+        var inputs = CommunicatorObjects_UnityInputProto()
+        inputs.rlInitializationInput = rlInitParametersIn
+        return inputs
     }
     
     /// Sends a shutdown signal to the unity environment, and closes the socket connection.
-    public func close() throws -> Void {
-        if loaded {
-            props.loaded = false
-            communicator?.close()
-        } else{
-            throw UnityException.UnityEnvironmentException(reason: "No Unity environment is loaded.")
-        }
+//    public func close() throws -> Void {
+//        if loaded {
+//            props.loaded = false
+//            communicator?.close()
+//        } else{
+//            throw UnityException.UnityEnvironmentException(reason: "No Unity environment is loaded.")
+//        }
+//    }
+    public func train(onNext: @escaping (_ model: Model, _ reward: Float32, _ isDone: Bool) -> Void) {
+        self.onNext = onNext
+        self.communicator?.startServer()
     }
     
     public func setActions(behaviorName: BehaviorName, action: Tensor<BehaviorSpecContinousAction.Scalar>) throws -> Void {
@@ -730,7 +638,7 @@ open class BaseEnv: UnityEnv {
         return wrapUnityInput(rlInput: rlIn)
     }
     
-    func updateBehaviorSpecs(output: CommunicatorObjects_UnityOutputProto) -> Void {
+    func updateBehaviorSpecs(output: CommunicatorObjects_UnityOutputProto) {
         let initOutput = output.rlInitializationOutput
         if(initOutput.brainParameters.count==0) {
             return
@@ -746,36 +654,156 @@ open class BaseEnv: UnityEnv {
         }
     }
     
-    /// Collects experience information from all external brains in environment at current step.
-    func updateState(output: CommunicatorObjects_UnityRLOutputProto) throws -> Void {
+    func updateState(output: CommunicatorObjects_UnityRLOutputProto) -> CommunicatorObjects_UnityInputProto{
         for brainName in envSpecs.keys {
             if output.agentInfos.keys.contains(brainName) {
                 if let agentInfo = output.agentInfos[brainName], let envSpec = envSpecs[brainName] {
-                    props.envState[brainName] = try stepsFromProto(agentInfoList: agentInfo.value, behaviorSpec: envSpec)
+                    props.envState[brainName] = try? stepsFromProto(agentInfoList: agentInfo.value, behaviorSpec: envSpec)
                 }
             } else {
-                if let envSpec =  envSpecs[brainName] {
+                if let envSpec = envSpecs[brainName] {
                     props.envState[brainName] = (DecisionSteps.empty(spec: envSpec), TerminalSteps.empty(spec: envSpec))
                 }
             }
+            
+            if let (decisionStep, terminalStep) = try? self.getSteps(behaviorName: brainName) {
+                var obs: Observation<Float32>
+                if terminalStep.len() != 0{
+                    self.gameOver = true
+                    obs = self.singleStep(name:brainName, info: terminalStep)
+                } else {
+                    obs = self.singleStep(name: brainName, info: decisionStep)
+                }
+                if let previousAction = props.envActions[brainName]{
+                    model.updateTrajectory(action: previousAction.flattened(), observation: obs)
+                }
+                if case let Observation.SingleObservation(s, reward, isDone, _) = obs {
+                    var action = model.predict(state: s)
+                    if let envSpec = envSpecs[brainName] {
+                        action = action.reshaped(to: TensorShape(1, envSpec.actionSize))
+                    }
+                    _ = try? self.setActions(behaviorName: brainName, action: action)
+                    self.onNext?(model, reward, isDone)
+                }
+                
+                if !(props.envActions.keys.contains(brainName)) {
+                    var nAgents = 0
+                    if props.envState.keys.contains(brainName){
+                        nAgents = envState[brainName]?.0.len() ?? 0
+                    }
+                    props.envActions[brainName] = props.envSpecs[brainName]?.createEmptyAction(nAgents: nAgents)
+                }
+            }
         }
-        try sideChannelManager?.processSideChannelMessage(message: output.sideChannel)
+        _ = try? sideChannelManager?.processSideChannelMessage(message: output.sideChannel)
+        
+        return generateStepInput(vectorAction: props.envActions)
     }
-    func sendAcademyParameters(initParameters: CommunicatorObjects_UnityRLInitializationInputProto) -> CommunicatorObjects_UnityOutputProto? {
-        var inputs = CommunicatorObjects_UnityInputProto()
-        inputs.rlInitializationInput = initParameters
-        return communicator?.initialize(inputs: inputs)
+    
+    func singleStep<StepsImpl: Steps>(name: String, info: StepsImpl) -> Observation<Float32> {
+        var defaultObservationSingle: Tensor<Float32>? = nil
+        var defaultObservationMulti: [Tensor<Float32>] = []
+        
+        if self.allowMultipleObs {
+//            let visualObs = self.getVisObsList(info)
+//            var visualObsList: [Tensor<Float32>] = []
+//            for obs in visualObs {
+//                visualObsList.append(self.preprocessSingle(obs[0]))
+//            }
+//            defaultObservationMulti = visualObsList
+            if let behaviorSpec = self.behaviorSpecs[name], let vecObsSize = self.getVecObsSize(behaviorSpec), vecObsSize >= 1 {
+                defaultObservationMulti.append(self.getVectorObs(info).gathering(atIndices: Tensor<Int32>(Int32(0)), alongAxis: 0))
+            }
+        } else {
+//            if let nVisObs = self.getNVisObs(), nVisObs >= 1 {
+//                let visualObs = self.getVisObsList(info)
+//                defaultObservationSingle = self.preprocessSingle(visualObs[0][0])
+//            } else {
+                defaultObservationSingle = self.getVectorObs(info).gathering(atIndices: Tensor<Int32>(Int32(0)), alongAxis: 0)
+//            }
+        }
+//        if let nVisObs = self.getNVisObs(), nVisObs >= 1 {
+//            let visualObs = self.getVisObsList(info)
+//            visualObs = self.preprocessSingle(visualObs[0][0])
+//        }
+        let done = info is TerminalSteps ? true : false
+        if let obs = defaultObservationSingle {
+            return .SingleObservation(observation: obs.reshaped(to: TensorShape(1, obs.shape[0])),
+                                      reward: info.reward.scalars[0],
+                                      done: done,
+                                      info: [:])
+        } else {
+            return .MultiObservation(observation: defaultObservationMulti, reward: info.reward.scalars[0], done: done, info: [:])
+        }
     }
+    
+    func getVecObsSize(_ groupSpec: BehaviorSpecContinousAction) -> Int32? {
+        let observationShapes = groupSpec.observationShapes
+        var result: Int32 = 0
+        for shape in observationShapes {
+            if shape.count == 1 {
+                result += shape[0]
+            }
+        }
+        return result
+    }
+    
+    func getVectorObs(_ stepResult: Steps) -> Tensor<Float32>{
+        var result: [Tensor<Float32>] = []
+        for obs in stepResult.obs{
+            if obs.shape.count == 2{
+                result.append(obs)
+            }
+        }
+        if result.count == 1 {
+            return result[0]
+        }
+        return Tensor(concatenating: result, alongAxis: 1)
+    }
+    
+    
     func wrapUnityInput(rlInput: CommunicatorObjects_UnityRLInputProto) -> CommunicatorObjects_UnityInputProto {
         var result = CommunicatorObjects_UnityInputProto()
         result.rlInput = rlInput
         return result
     }
-
+    
+    //    func preprocessSingle(_ singleVisualObs: Tensor<Float32>) -> Tensor<Float32> {
+    //        if self.uint8Visual {
+    //            return (255.0 * singleVisualObs)
+    //        } else {
+    //            return singleVisualObs
+    //        }
+    //    }
+        
+    //    func getVisObsList(_ stepResult: Steps) -> [Tensor<Float32>]{
+    //        var result: [Tensor<Float32>] = []
+    //        for obs in stepResult.obs {
+    //            if obs.shape.count == 4{
+    //                result.append(obs)
+    //            }
+    //        }
+    //        return result
+    //    }
+        
+    //    func getNVisObs() -> Int32? {
+    //        guard let observationShapes = self.groupSpec?.observationShapes else {
+    //            return Optional.none
+    //        }
+    //        var result: Int32 = 0
+    //        for shape in observationShapes {
+    //            if shape.count == 3 {
+    //                result += 1
+    //            }
+    //        }
+    //        return result
+    //    }
 }
+
 enum BaseEnvError: Error {
     case InvalidKeyWithinTerminalSteps(message: String)
 }
+
 /// Contains the data a single Agent collected when its episode ended
 struct TerminalStep {
     

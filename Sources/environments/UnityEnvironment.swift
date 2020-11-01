@@ -11,8 +11,9 @@ import GRPC
 import NIO
 
 public class Props {
-    
-    var isFirstMessage: Bool = true
+    var model: Model
+    var allowMultipleObs: Bool = false
+    var gameOver: Bool = false
     var communicator: RpcCommunicator? = Optional.none
     var sideChannelManager: SideChannelManager? = Optional.none
     var loaded: Bool = false
@@ -21,6 +22,10 @@ public class Props {
     var envSpecs: [String: BehaviorSpecContinousAction] = [:]
     var envActions: [String: Tensor<BehaviorSpecContinousAction.Scalar>] = [:]
     var port: Int = 5004
+    
+    init(model: Model) {
+        self.model = model
+    }
 }
 
 open class UnityContinousEnvironment: BaseEnv {

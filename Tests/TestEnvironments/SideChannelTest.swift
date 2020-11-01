@@ -187,4 +187,36 @@ class SideChannelTest: XCTestCase {
         XCTAssertEqual(val, 42.0, accuracy: 1e-8)
         XCTAssertEqual(method, StatsSideChannel.MOST_RECENT)
     }
+    
+    func testLittleEndianUUID(){
+        let channelId = UUID(uuidString: "534c891e-810f-11ea-a9d0-822485860400")!
+        
+        let channel = EngineConfigurationChannel()
+
+        try? channel.setConfigurationParameters(
+            width: 600,
+            height: 800,
+            qualityLevel: 5,
+            timeScale: 20.0,
+            targetFrameRate: -1,
+            captureFrameRate: 60
+        )
+        var result = ByteBuffer()
+        for message in channel.messageQueue {
+            var m = message
+                result.writeData(SideChannelManager.toLittleEndain(uuid: channelId))
+                result.writeInteger(message.readableBytes, endianness: .little)
+                result.writeBuffer(&m)
+        }
+        channel.messageQueue = []
+        var rlIn = CommunicatorObjects_UnityRLInputProto()
+        rlIn.command = CommunicatorObjects_CommandProto.reset
+        
+        let ret = result.readData(length: result.readableBytes)!
+        rlIn.sideChannel = ret
+        
+        print(rlIn)
+        
+        
+    }
 }

@@ -28,7 +28,7 @@ class IncomingMessage {
         if buffer.readableBytes < MemoryLayout<Int32>.size {
              return defaultValue
         }
-        guard let ret = buffer.readInteger(as: Int32.self) else {
+        guard let ret = buffer.readInteger(endianness: .little, as: Int32.self) else {
             return defaultValue
         }
         return ret
@@ -38,7 +38,7 @@ class IncomingMessage {
         if buffer.readableBytes < MemoryLayout<Float32>.size {
              return defaultValue
         }
-        let fO = buffer.readInteger(as: UInt32.self).map { Float32(bitPattern: $0) }
+        let fO = buffer.readInteger(endianness: .little, as: UInt32.self).map { Float32(bitPattern: $0) }
         guard let ret = fO else { return defaultValue }
         return ret
     }
