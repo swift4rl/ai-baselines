@@ -20,9 +20,19 @@ struct ActorNetwork: Layer {
 
     var l1, l2, l3: Dense<Float>
 
-    init(l1: Dense<Float>, l2: Dense<Float>, hiddenSize: Int, actionCount: Int) {
-        self.l1 = l1
-        self.l2 = l2
+    init(inputSize: Int, hiddenSize: Int, actionCount: Int) {
+        self.l1 = Dense<Float>(
+            inputSize: inputSize,
+            outputSize: hiddenSize,
+            activation: tanh,
+            weightInitializer: heNormal()
+        )
+        self.l2 = Dense<Float>(
+            inputSize: hiddenSize,
+            outputSize: hiddenSize,
+            activation: tanh,
+            weightInitializer: heNormal()
+        )
         l3 = Dense<Float>(
             inputSize: hiddenSize,
             outputSize: actionCount,
@@ -43,9 +53,19 @@ struct CriticNetwork: Layer {
 
     var l1, l2, l3: Dense<Float>
 
-    init(l1: Dense<Float>, l2: Dense<Float>, hiddenSize: Int) {
-        self.l1 = l1
-        self.l2 = l2
+    init(inputSize: Int, hiddenSize: Int) {
+        self.l1 = Dense<Float>(
+            inputSize: inputSize,
+            outputSize: hiddenSize,
+            activation: tanh,
+            weightInitializer: heNormal()
+        )
+        self.l2 = Dense<Float>(
+            inputSize: hiddenSize,
+            outputSize: hiddenSize,
+            activation: tanh,
+            weightInitializer: heNormal()
+        )
         l3 = Dense<Float>(
             inputSize: hiddenSize,
             outputSize: 1,
@@ -68,27 +88,13 @@ struct ActorCritic: Layer {
     var criticNetwork: CriticNetwork
 
     init(observationSize: Int, hiddenSize: Int, actionCount: Int) {
-        let l1 = Dense<Float>(
-            inputSize: observationSize,
-            outputSize: hiddenSize,
-            activation: swish,
-            weightInitializer: heNormal()
-        )
-        let l2 = Dense<Float>(
-            inputSize: hiddenSize,
-            outputSize: hiddenSize,
-            activation: swish,
-            weightInitializer: heNormal()
-        )
         self.actorNetwork = ActorNetwork(
-            l1: l1,
-            l2: l2,
+            inputSize: observationSize,
             hiddenSize: hiddenSize,
             actionCount: actionCount
         )
         self.criticNetwork = CriticNetwork(
-            l1: l1,
-            l2: l2,
+            inputSize: observationSize,
             hiddenSize: hiddenSize
         )
     }

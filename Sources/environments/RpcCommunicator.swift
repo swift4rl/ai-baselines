@@ -46,7 +46,6 @@ class UnityToExternalServicerImplementation : CommunicatorObjects_UnityToExterna
         }
         
         message.unityInput = unityEnvironmentListener.updateState(output: request.unityOutput.rlOutput)
-        //print("Response => \(message)")
         return context.eventLoop.makeSucceededFuture(message)
         
     }

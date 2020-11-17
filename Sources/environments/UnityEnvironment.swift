@@ -21,6 +21,7 @@ public class Props {
     var envState: [String: (DecisionSteps, TerminalSteps)] = [:]
     var envSpecs: [String: BehaviorSpecContinousAction] = [:]
     var envActions: [String: Tensor<BehaviorSpecContinousAction.Scalar>] = [:]
+    var envLogLoss: [String: Tensor<Float32>] = [:]
     var port: Int = 5004
     
     init(model: Model) {

@@ -23,23 +23,26 @@ struct Trajectory {
     var states: [Tensor<Float32>] = []
     var actions: [Tensor<Float32>] = []
     var rewards: [Float] = []
+    var logProbs: [Tensor<Float32>] = []
     var isDones: [Bool] = []
     
     var nSteps: Int
-
+    
     init() {
         self.nSteps = 0
     }
-
+    
     init(
         states: [Tensor<Float32>],
         actions: [Tensor<Float32>],
         rewards: [Float],
+        logProbs: [Tensor<Float32>],
         isDones: [Bool]) {
         self.states = states
         self.actions = actions
         self.rewards = rewards
         self.isDones = isDones
+        self.logProbs = logProbs
         self.nSteps = isDones.count
     }
     
@@ -47,11 +50,12 @@ struct Trajectory {
         return Trajectory(states: index.map{states[$0]},
                           actions: index.map{actions[$0]},
                           rewards: index.map{rewards[$0]},
+                          logProbs: index.map{logProbs[$0]},
                           isDones: index.map{isDones[$0]}
         )
     }
-    
-public func returns(discount: Float32, lam: Float32, values: [Tensor<Float32>]) -> Tensor<Float32> {
+    @noDerivative
+    public func returns(discount: Float32, lam: Float32, values: [Float32]) -> Tensor<Float32> {
         var lastGaeLam: Float32 = 0
         var advantages = Array<Float32>(repeating: 0, count: nSteps)
         for step in (0 ..< self.rewards.count).reversed() {
@@ -59,44 +63,48 @@ public func returns(discount: Float32, lam: Float32, values: [Tensor<Float32>]) 
             let nextValues: Float32
             if step == nSteps - 1 {
                 nextnonterminal = 1.0 - (self.isDones[nSteps - 1] ? 1.0 : 0.0)
-                nextValues = values[nSteps - 1].scalars[0]
+                nextValues = values[nSteps - 1]
             } else {
                 nextnonterminal = 1.0 - (self.isDones[step + 1] ? 1.0 : 0.0)
-                nextValues = values[step + 1].scalars[0]
+                nextValues = values[step + 1]
             }
-            let delta = self.rewards[step] + discount * nextValues * nextnonterminal - values[step].scalars[0]
+            let delta = self.rewards[step] + discount * nextValues * nextnonterminal - values[step]
             lastGaeLam = delta + discount * lam * nextnonterminal * lastGaeLam
             advantages[step] = lastGaeLam
         }
-        return Tensor<Float32>(advantages) + Tensor(values).flattened()
+        return Tensor<Float32>(advantages) + Tensor(values)
     }
     
+    @noDerivative
     public func returns(discount: Float32) -> Tensor<Float32>{
         var rewards : [ Float32 ] = []
-                var discountedReward: Float32 = 0
-                for i in (0..<self.rewards.count).reversed() {
-                    if self.isDones[i] {
-                        discountedReward = 0
-                    }
-                    discountedReward = self.rewards[i] + (discount * discountedReward)
-                    rewards.insert(discountedReward, at: 0)
-                }
-        return Tensor<Float32>(rewards)
+        var discountedReward: Float32 = 0
+        for i in (0..<self.rewards.count).reversed() {
+            if self.isDones[i] {
+                discountedReward = 0
+            }
+            discountedReward = self.rewards[i] + (discount * discountedReward)
+            rewards.insert(discountedReward, at: 0)
+        }
+        var returns = Tensor<Float32>(rewards)
+        return (returns - returns.mean()) / (returns.standardDeviation() + 1e-5)
     }
     
-    mutating func append(state: Tensor<Float32>, action: Tensor<Float32>, reward: Float, isDone: Bool) {
+    mutating func append(state: Tensor<Float32>, action: Tensor<Float32>, reward: Float, logProb: Tensor<Float32>, isDone: Bool) {
         states.append(state)
         actions.append(action)
         rewards.append(reward)
         isDones.append(isDone)
+        logProbs.append(logProb)
         self.nSteps += 1
     }
-
+    
     mutating func removeAll() {
         states.removeAll()
         actions.removeAll()
         rewards.removeAll()
         isDones.removeAll()
+        logProbs.removeAll()
         self.nSteps = 0
     }
     

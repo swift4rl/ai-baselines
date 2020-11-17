@@ -18,7 +18,7 @@ let actionCount: Int = 2
 
 let hiddenSize: Int = 128
 /// The learning rate for both the actor and the critic.
-let learningRate: Float = 3.0e-4
+let learningRate: Float = 0.00003
 /// The discount factor. This measures how much to "discount" the future rewards
 /// that the agent will receive. The discount factor must be from 0 to 1
 /// (inclusive). Discount factor of 0 means that the agent only considers the
@@ -28,12 +28,12 @@ let learningRate: Float = 3.0e-4
 let discount: Float = 0.99
 /// Number of epochs to run minibatch updates once enough trajectory segments are collected. Denoted
 /// K in the PPO paper.
-let epochs: Int = 10
+let epochs: Int = 3
 /// Parameter to clip the probability ratio. The ratio is clipped to [1-clipEpsilon, 1+clipEpsilon].
 /// Denoted epsilon in the PPO paper.
 let clipEpsilon: Float = 0.2
 /// Coefficient for the entropy bonus added to the objective. Denoted c_2 in the PPO paper.
-let entropyCoefficient: Float = 0.001
+let entropyCoefficient: Float = 0.0001
 /// Maximum number of episodes to train the agent. The training is terminated
 /// early if maximum score is achieved consecutively 10 times.
 let maxEpisodes: Int = Int.max
@@ -42,7 +42,11 @@ let maxTimesteps: Int = Int.max
 /// The length of the trajectory segment. Denoted T in the PPO paper.
 let updateTimestep = 10240
 
-let nMiniBatches = 10
+let nMiniBatches = 160
+//
+//let updateTimestep = 128
+//
+//let nMiniBatches = 2
 
 // Training loop
 var episode: Int = 0
@@ -101,7 +105,7 @@ unityEnv.train(onNext: { model, reward, isDone in
         episodeReturn = 0
         episode += 1
     }
-    if totalStepCount != 0 && totalStepCount % 200000 == 0 {
+    if totalStepCount != 0 && totalStepCount % 5000 == 0 {
         let end = DispatchTime.now()
         let nanoTime = end.uptimeNanoseconds - start.uptimeNanoseconds
         let timeInterval = Double(nanoTime) / 1_000_000_000
@@ -111,6 +115,9 @@ unityEnv.train(onNext: { model, reward, isDone in
         let maxIndex = episodeReturns.firstIndex(of: max)!
         print("Step: \(totalStepCount) Time Elapsed: \(timeInterval) seconds Mean Reward: \(avgEpisodeReturns) max: \(max), min: \(min), max index: \(maxIndex)")
         episodeReturns.removeAll()
+        
+    }
+    if totalStepCount != 0 && totalStepCount % 1000000 == 0 {
         try? channel.setConfigurationParameters(timeScale: 1)
     }
     totalStepCount += 1

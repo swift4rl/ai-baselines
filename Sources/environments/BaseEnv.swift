@@ -354,8 +354,8 @@ struct Defaults {
 }
 
 public protocol Model {
-    func predict(state: Tensor<Float32>) -> Tensor<Float32>
-    func updateTrajectory(action: Tensor<BehaviorSpecContinousAction.Scalar>, observation: Observation<Float32>)
+    func predict(state: Tensor<Float32>) -> DiagGaussianProbabilityDistribution
+    func updateTrajectory(action: Tensor<Float32>, logProb: Tensor<Float32>, observation: Observation<Float32>)
 }
 
 open class BaseEnv: UnityEnvironmentListener {
@@ -547,7 +547,7 @@ open class BaseEnv: UnityEnvironmentListener {
         self.communicator?.startServer()
     }
     
-    public func setActions(behaviorName: BehaviorName, action: Tensor<BehaviorSpecContinousAction.Scalar>) throws -> Void {
+    public func setActions(behaviorName: BehaviorName, action: Tensor<BehaviorSpecContinousAction.Scalar>, logLoss: Tensor<Float32>) throws -> Void {
         try assertBehaviorExists(behaviorName: behaviorName)
         if !props.envState.keys.contains(behaviorName) {
             return
@@ -562,6 +562,7 @@ open class BaseEnv: UnityEnvironmentListener {
                     """)
             }
             props.envActions[behaviorName] = action
+            props.envLogLoss[behaviorName] = logLoss
         }
     }
     
@@ -674,15 +675,17 @@ open class BaseEnv: UnityEnvironmentListener {
                 } else {
                     obs = self.singleStep(name: brainName, info: decisionStep)
                 }
-                if let previousAction = props.envActions[brainName]{
-                    model.updateTrajectory(action: previousAction.flattened(), observation: obs)
-                }
-                if case let Observation.SingleObservation(s, reward, isDone, _) = obs {
-                    var action = model.predict(state: s)
+                if case let Observation.SingleObservation(state, reward, isDone, _) = obs {
+                    if let previousAction = props.envActions[brainName], let logLoss = props.envLogLoss[brainName]{
+                        model.updateTrajectory(action: previousAction.flattened(), logProb: logLoss, observation: obs)
+                    }
+                    let dist = model.predict(state: state)
+                    var action = dist.sample()
+                    let logLoss = dist.neglogp(of: action)
                     if let envSpec = envSpecs[brainName] {
                         action = action.reshaped(to: TensorShape(1, envSpec.actionSize))
                     }
-                    _ = try? self.setActions(behaviorName: brainName, action: action)
+                    _ = try? self.setActions(behaviorName: brainName, action: action, logLoss: logLoss)
                     self.onNext?(model, reward, isDone)
                 }
                 
