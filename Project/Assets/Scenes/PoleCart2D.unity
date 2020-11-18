@@ -380,18 +380,13 @@ PrefabInstance:
       objectReference: {fileID: 2100000, guid: 8ad445db92204be46a9ebba854b91dd0, type: 2}
     - target: {fileID: 6085589937172364402, guid: fe10000776e7e2b4babb9ad06f948b5b,
         type: 3}
-      propertyPath: m_Model
-      value: 
-      objectReference: {fileID: 0}
-    - target: {fileID: 6085589937172364402, guid: fe10000776e7e2b4babb9ad06f948b5b,
-        type: 3}
       propertyPath: m_BrainParameters.VectorActionSize.Array.data[0]
       value: 1
       objectReference: {fileID: 0}
-    - target: {fileID: 6085589937172364413, guid: fe10000776e7e2b4babb9ad06f948b5b,
+    - target: {fileID: 6085589937172364402, guid: fe10000776e7e2b4babb9ad06f948b5b,
         type: 3}
-      propertyPath: DecisionPeriod
-      value: 1
+      propertyPath: m_Model
+      value: 
       objectReference: {fileID: 0}
     m_RemovedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: fe10000776e7e2b4babb9ad06f948b5b, type: 3}

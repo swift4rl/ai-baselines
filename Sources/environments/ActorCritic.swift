@@ -20,24 +20,14 @@ struct ActorNetwork: Layer {
 
     var l1, l2, l3: Dense<Float>
 
-    init(inputSize: Int, hiddenSize: Int, actionCount: Int) {
-        self.l1 = Dense<Float>(
-            inputSize: inputSize,
-            outputSize: hiddenSize,
-            activation: tanh,
-            weightInitializer: heNormal()
-        )
-        self.l2 = Dense<Float>(
-            inputSize: hiddenSize,
-            outputSize: hiddenSize,
-            activation: tanh,
-            weightInitializer: heNormal()
-        )
+    init(l1: Dense<Float>, l2: Dense<Float>, hiddenSize: Int, actionCount: Int) {
+        self.l1 = l1
+        self.l2 = l2
         l3 = Dense<Float>(
             inputSize: hiddenSize,
             outputSize: actionCount,
             activation: tanh,
-            weightInitializer: heNormal()
+            weightInitializer: heNormal(seed: TensorFlowSeed(1,1))
         )
     }
 
@@ -53,24 +43,14 @@ struct CriticNetwork: Layer {
 
     var l1, l2, l3: Dense<Float>
 
-    init(inputSize: Int, hiddenSize: Int) {
-        self.l1 = Dense<Float>(
-            inputSize: inputSize,
-            outputSize: hiddenSize,
-            activation: tanh,
-            weightInitializer: heNormal()
-        )
-        self.l2 = Dense<Float>(
-            inputSize: hiddenSize,
-            outputSize: hiddenSize,
-            activation: tanh,
-            weightInitializer: heNormal()
-        )
+    init(l1: Dense<Float>, l2: Dense<Float>, hiddenSize: Int) {
+        self.l1 = l1
+        self.l2 = l2
         l3 = Dense<Float>(
             inputSize: hiddenSize,
             outputSize: 1,
             activation: tanh,
-            weightInitializer: heNormal()
+            weightInitializer: heNormal(seed: TensorFlowSeed(1,1))
         )
     }
 
@@ -88,13 +68,27 @@ struct ActorCritic: Layer {
     var criticNetwork: CriticNetwork
 
     init(observationSize: Int, hiddenSize: Int, actionCount: Int) {
-        self.actorNetwork = ActorNetwork(
+        let l1 = Dense<Float>(
             inputSize: observationSize,
+            outputSize: hiddenSize,
+            activation: tanh,
+            weightInitializer: heNormal(seed: TensorFlowSeed(1,1))
+        )
+        let l2 = Dense<Float>(
+            inputSize: hiddenSize,
+            outputSize: hiddenSize,
+            activation: tanh,
+            weightInitializer: heNormal(seed: TensorFlowSeed(1,1))
+        )
+        self.actorNetwork = ActorNetwork(
+            l1: l1,
+            l2: l2,
             hiddenSize: hiddenSize,
             actionCount: actionCount
         )
         self.criticNetwork = CriticNetwork(
-            inputSize: observationSize,
+            l1: l1,
+            l2: l2,
             hiddenSize: hiddenSize
         )
     }

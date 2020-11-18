@@ -30,8 +30,8 @@ open class PPO: Model {
     let nMiniBatches: Int
     var actorCritic: ActorCritic
     var oldActorCritic: ActorCritic
-    var actorOptimizer: AMSGrad<ActorNetwork>
-    var criticOptimizer: AMSGrad<CriticNetwork>
+    var actorOptimizer: Adam<ActorNetwork>
+    var criticOptimizer: Adam<CriticNetwork>
     
     public init(
         observationSize: Int,
@@ -65,8 +65,8 @@ open class PPO: Model {
             actionCount: actionCount
         )
         self.oldActorCritic = self.actorCritic
-        self.actorOptimizer = AMSGrad(for: actorCritic.actorNetwork, learningRate: learningRate)
-        self.criticOptimizer = AMSGrad(for: actorCritic.criticNetwork, learningRate: learningRate)
+        self.actorOptimizer = Adam(for: actorCritic.actorNetwork, learningRate: learningRate)
+        self.criticOptimizer = Adam(for: actorCritic.criticNetwork, learningRate: learningRate)
     }
     
     public func predict(state: Tensor<Float32>) -> DiagGaussianProbabilityDistribution { oldActorCritic(state) }
@@ -92,68 +92,72 @@ open class PPO: Model {
                 let oldStates: Tensor<Float32> = Tensor(traj.states).squeezingShape(at: 1)
                 let oldLogProbs = Tensor(traj.logProbs).flattened()
                 
-                let rewards = traj.returns(discount: self.discount)
-                
                 // Optimize policy network (actor)
+                let oldStateValues = self.actorCritic.criticNetwork(oldStates).flattened()
+                let rewards = traj.returns(discount: self.discount, lam: self.lam, values: oldStateValues.scalars)
                 
-                var (actorLoss, actorGradients) = valueWithGradient(at: self.actorCritic.actorNetwork) { actorNetwork -> Tensor<Float32> in
+                let (actorLoss, actorGradients) = valueWithGradient(at: self.actorCritic.actorNetwork) { actorNetwork -> Tensor<Float32> in
                     //let dist = Self.feedForward(with: actorNetwork, for: oldActions, given: oldStates)
                     let actionProbs = actorNetwork(oldStates)
                     
                     let dist = DiagGaussianProbabilityDistribution(flat: actionProbs)
                     
                     let action = dist.sample()
-                    let stateValues = self.actorCritic.criticNetwork(oldStates).flattened()
+                    
                     let logProbs = dist.neglogp(of: action).flattened()
+                    
                     let ratios: Tensor<Float32> = exp(logProbs - oldLogProbs)
-                    let advantages: Tensor<Float> = rewards - stateValues
-                    let pgLosses = ratios * advantages
-                    //                print(pgLosses)
-                    let pgLosses2 = ratios.clipped(min: 1 - self.clipEpsilon, max: 1 + self.clipEpsilon) * advantages
-                    //                print(pgLosses2)
-                    let pgLoss = Tensor(stacking: [pgLosses, pgLosses2]).min(alongAxes: 0).flattened()
-                    //                print(pgLoss)
-                    let entropyBonus: Tensor<Float> = Tensor<Float>(self.entropyCoefficient * dist.entropy().flattened())
-                    //                print(entropyBonus)
-                    let loss: Tensor<Float> =  -1 * (pgLoss + entropyBonus)
-                    //                print(loss)
-                    //                print(loss.mean())
-                    return loss.mean()
+                    
+                    let advantages: Tensor<Float> = rewards - oldStateValues
+                    let pgLosses = advantages * ratios
+                    
+                    let pgLosses2 = advantages * ratios.clipped(min: 1 - self.clipEpsilon, max: 1 + self.clipEpsilon)
+                    
+                    let actorLoss = Tensor(stacking: [pgLosses, pgLosses2]).min(alongAxes: 0).flattened()
+                    
+                    //let entropyBonus: Tensor<Float> = Tensor<Float>(self.entropyCoefficient * dist.entropy().flattened())
+                    //let loss: Tensor<Float> =  -1 * (pgLoss + entropyBonus)
+                    
+                    return -actorLoss.mean()
                 }
                 
-                var (criticLoss, criticGradients) = valueWithGradient(at: self.actorCritic.criticNetwork) { criticNetwork -> Tensor<Float> in
+                let (criticLoss, criticGradients) = valueWithGradient(at: self.actorCritic.criticNetwork) { criticNetwork -> Tensor<Float> in
                     let stateValues = criticNetwork(oldStates).flattened()
                     let loss: Tensor<Float> = 0.5 * pow(stateValues - rewards, 2)
+                    //loss.clipped(min: stateValues -  oldStateValues, max: <#T##Tensor<Float>#>)
                     return loss.mean()
                 }
-                criticGradients.clipByGlobalNorm(clipNorm: maxGradNorm)
+                // criticGradients.clipByGlobalNorm(clipNorm: maxGradNorm)
+                //actorGradients.clipByGlobalNorm(clipNorm: maxGradNorm)
                 self.criticOptimizer.update(&self.actorCritic.criticNetwork, along: criticGradients)
                 criticLosses.append(criticLoss.scalarized())
                 //print("gradients: \(actorGradients)")
-                actorGradients.clipByGlobalNorm(clipNorm: maxGradNorm)
+                
                 self.actorOptimizer.update(&self.actorCritic.actorNetwork, along: actorGradients)
                 actorLosses.append(actorLoss.scalarized())
                 self.oldActorCritic = self.actorCritic
             })
             print("epoch \(epoch) actor loss => \(actorLosses.reduce(Float32(0), +) / Float32(actorLosses.count)) critic loss => \(criticLosses.reduce(Float32(0), +) / Float32(criticLosses.count))")
+            actorLosses.removeAll()
+            criticLosses.removeAll()
         }
         trajectory.removeAll()
     }
     
-    static func feedForward(with actorNetwork: ActorNetwork, for actions: Tensor<Float32>, given state: Tensor<Float32>) -> DiagGaussianProbabilityDistribution {
-        let sh = TensorShape(actions.shape[0])
-        let range = Tensor<Int32>(rangeFrom: 0, to: Int32(actions.shape[0]), stride: 1)
-        let zeros = Tensor<Int32>(zeros: sh)
-        let indices: Tensor<Int32> =
-            Tensor(stacking: [
-                range.concatenated(with: range),
-                zeros.concatenated(with: Tensor(ones: sh))
-            ], alongAxis: 1)
-        
-        var actionProbs: Tensor<Float32> = actorNetwork(state)
-        actionProbs = actionProbs.dimensionGathering(atIndices: indices)
-        
-        return DiagGaussianProbabilityDistribution(flat: actionProbs)
-    }
-    
+//    static func feedForward(with actorNetwork: ActorNetwork, for actions: Tensor<Float32>, given state: Tensor<Float32>) -> DiagGaussianProbabilityDistribution {
+//        let sh = TensorShape(actions.shape[0])
+//        let range = Tensor<Int32>(rangeFrom: 0, to: Int32(actions.shape[0]), stride: 1)
+//        let zeros = Tensor<Int32>(zeros: sh)
+//        let indices: Tensor<Int32> =
+//            Tensor(stacking: [
+//                range.concatenated(with: range),
+//                zeros.concatenated(with: Tensor(ones: sh))
+//            ], alongAxis: 1)
+//
+//        var actionProbs: Tensor<Float32> = actorNetwork(state)
+//        actionProbs = actionProbs.dimensionGathering(atIndices: indices)
+//
+//        return DiagGaussianProbabilityDistribution(flat: actionProbs)
+//    }
+//
 }

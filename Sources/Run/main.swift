@@ -16,9 +16,9 @@ let actionCount: Int = 2
 /// has the shape observationSize - hiddenSize - actionCount, and the critic network has the same
 /// shape but with a single output node.
 
-let hiddenSize: Int = 128
+let hiddenSize: Int = 64
 /// The learning rate for both the actor and the critic.
-let learningRate: Float = 0.00003
+let learningRate: Float = 0.01
 /// The discount factor. This measures how much to "discount" the future rewards
 /// that the agent will receive. The discount factor must be from 0 to 1
 /// (inclusive). Discount factor of 0 means that the agent only considers the
@@ -31,7 +31,7 @@ let discount: Float = 0.99
 let epochs: Int = 3
 /// Parameter to clip the probability ratio. The ratio is clipped to [1-clipEpsilon, 1+clipEpsilon].
 /// Denoted epsilon in the PPO paper.
-let clipEpsilon: Float = 0.2
+let clipEpsilon: Float = 0.1
 /// Coefficient for the entropy bonus added to the objective. Denoted c_2 in the PPO paper.
 let entropyCoefficient: Float = 0.0001
 /// Maximum number of episodes to train the agent. The training is terminated
@@ -42,7 +42,7 @@ let maxTimesteps: Int = Int.max
 /// The length of the trajectory segment. Denoted T in the PPO paper.
 let updateTimestep = 10240
 
-let nMiniBatches = 160
+let nMiniBatches = 4
 //
 //let updateTimestep = 128
 //
@@ -117,7 +117,7 @@ unityEnv.train(onNext: { model, reward, isDone in
         episodeReturns.removeAll()
         
     }
-    if totalStepCount != 0 && totalStepCount % 1000000 == 0 {
+    if totalStepCount != 0 && totalStepCount % 200000 == 0 {
         try? channel.setConfigurationParameters(timeScale: 1)
     }
     totalStepCount += 1
