@@ -11,7 +11,7 @@ task :dependencies do
 
   project.targets.each do |target|
     project.build_configurations.each { |config|
-      config.build_settings["MACOSX_DEPLOYMENT_TARGET"] = 10.15
+      config.build_settings["MACOSX_DEPLOYMENT_TARGET"] = 11.0
       config.build_settings["SUPPORTED_PLATFORMS"] = 'macosx'
       config.build_settings["LD_RUNPATH_SEARCH_PATHS"] = "$(inherited) @executable_path/Frameworks"
       config.build_settings["SWIFT_VERSION"] = '5.3'
@@ -20,7 +20,7 @@ task :dependencies do
     }
 
     target.build_configurations.each do |config|
-      config.build_settings["MACOSX_DEPLOYMENT_TARGET"] = 10.15
+      config.build_settings["MACOSX_DEPLOYMENT_TARGET"] = 11.0
       config.build_settings["SUPPORTED_PLATFORMS"] = 'macosx'
     end
   end

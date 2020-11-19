@@ -40,7 +40,11 @@ namespace MLAgents.CommunicatorObjects {
 
   }
   #region Messages
-  internal sealed partial class DemonstrationMetaProto : pb::IMessage<DemonstrationMetaProto> {
+  internal sealed partial class DemonstrationMetaProto : pb::IMessage<DemonstrationMetaProto>
+  #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+      , pb::IBufferMessage
+  #endif
+  {
     private static readonly pb::MessageParser<DemonstrationMetaProto> _parser = new pb::MessageParser<DemonstrationMetaProto>(() => new DemonstrationMetaProto());
     private pb::UnknownFieldSet _unknownFields;
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -175,6 +179,9 @@ namespace MLAgents.CommunicatorObjects {
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     public void WriteTo(pb::CodedOutputStream output) {
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+      output.WriteRawMessage(this);
+    #else
       if (ApiVersion != 0) {
         output.WriteRawTag(8);
         output.WriteInt32(ApiVersion);
@@ -198,7 +205,37 @@ namespace MLAgents.CommunicatorObjects {
       if (_unknownFields != null) {
         _unknownFields.WriteTo(output);
       }
+    #endif
     }
+
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    void pb::IBufferMessage.InternalWriteTo(ref pb::WriteContext output) {
+      if (ApiVersion != 0) {
+        output.WriteRawTag(8);
+        output.WriteInt32(ApiVersion);
+      }
+      if (DemonstrationName.Length != 0) {
+        output.WriteRawTag(18);
+        output.WriteString(DemonstrationName);
+      }
+      if (NumberSteps != 0) {
+        output.WriteRawTag(24);
+        output.WriteInt32(NumberSteps);
+      }
+      if (NumberEpisodes != 0) {
+        output.WriteRawTag(32);
+        output.WriteInt32(NumberEpisodes);
+      }
+      if (MeanReward != 0F) {
+        output.WriteRawTag(45);
+        output.WriteFloat(MeanReward);
+      }
+      if (_unknownFields != null) {
+        _unknownFields.WriteTo(ref output);
+      }
+    }
+    #endif
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     public int CalculateSize() {
@@ -249,6 +286,9 @@ namespace MLAgents.CommunicatorObjects {
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     public void MergeFrom(pb::CodedInputStream input) {
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+      input.ReadRawMessage(this);
+    #else
       uint tag;
       while ((tag = input.ReadTag()) != 0) {
         switch(tag) {
@@ -277,7 +317,42 @@ namespace MLAgents.CommunicatorObjects {
           }
         }
       }
+    #endif
     }
+
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    void pb::IBufferMessage.InternalMergeFrom(ref pb::ParseContext input) {
+      uint tag;
+      while ((tag = input.ReadTag()) != 0) {
+        switch(tag) {
+          default:
+            _unknownFields = pb::UnknownFieldSet.MergeFieldFrom(_unknownFields, ref input);
+            break;
+          case 8: {
+            ApiVersion = input.ReadInt32();
+            break;
+          }
+          case 18: {
+            DemonstrationName = input.ReadString();
+            break;
+          }
+          case 24: {
+            NumberSteps = input.ReadInt32();
+            break;
+          }
+          case 32: {
+            NumberEpisodes = input.ReadInt32();
+            break;
+          }
+          case 45: {
+            MeanReward = input.ReadFloat();
+            break;
+          }
+        }
+      }
+    }
+    #endif
 
   }
 

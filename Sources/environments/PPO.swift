@@ -13,7 +13,6 @@
 // limitations under the License.
 
 import TensorFlow
-import environments
 import PythonKit
 
 open class PPO: Model {

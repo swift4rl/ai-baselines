@@ -86,7 +86,7 @@ struct Trajectory {
             discountedReward = self.rewards[i] + (discount * discountedReward)
             rewards.insert(discountedReward, at: 0)
         }
-        var returns = Tensor<Float32>(rewards)
+        let returns = Tensor<Float32>(rewards)
         return returns;
     }
     

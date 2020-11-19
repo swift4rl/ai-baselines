@@ -41,7 +41,11 @@ namespace MLAgents.CommunicatorObjects {
 
   }
   #region Messages
-  internal sealed partial class EngineConfigurationProto : pb::IMessage<EngineConfigurationProto> {
+  internal sealed partial class EngineConfigurationProto : pb::IMessage<EngineConfigurationProto>
+  #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+      , pb::IBufferMessage
+  #endif
+  {
     private static readonly pb::MessageParser<EngineConfigurationProto> _parser = new pb::MessageParser<EngineConfigurationProto>(() => new EngineConfigurationProto());
     private pb::UnknownFieldSet _unknownFields;
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -190,6 +194,9 @@ namespace MLAgents.CommunicatorObjects {
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     public void WriteTo(pb::CodedOutputStream output) {
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+      output.WriteRawMessage(this);
+    #else
       if (Width != 0) {
         output.WriteRawTag(8);
         output.WriteInt32(Width);
@@ -217,7 +224,41 @@ namespace MLAgents.CommunicatorObjects {
       if (_unknownFields != null) {
         _unknownFields.WriteTo(output);
       }
+    #endif
     }
+
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    void pb::IBufferMessage.InternalWriteTo(ref pb::WriteContext output) {
+      if (Width != 0) {
+        output.WriteRawTag(8);
+        output.WriteInt32(Width);
+      }
+      if (Height != 0) {
+        output.WriteRawTag(16);
+        output.WriteInt32(Height);
+      }
+      if (QualityLevel != 0) {
+        output.WriteRawTag(24);
+        output.WriteInt32(QualityLevel);
+      }
+      if (TimeScale != 0F) {
+        output.WriteRawTag(37);
+        output.WriteFloat(TimeScale);
+      }
+      if (TargetFrameRate != 0) {
+        output.WriteRawTag(40);
+        output.WriteInt32(TargetFrameRate);
+      }
+      if (ShowMonitor != false) {
+        output.WriteRawTag(48);
+        output.WriteBool(ShowMonitor);
+      }
+      if (_unknownFields != null) {
+        _unknownFields.WriteTo(ref output);
+      }
+    }
+    #endif
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     public int CalculateSize() {
@@ -274,6 +315,9 @@ namespace MLAgents.CommunicatorObjects {
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     public void MergeFrom(pb::CodedInputStream input) {
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+      input.ReadRawMessage(this);
+    #else
       uint tag;
       while ((tag = input.ReadTag()) != 0) {
         switch(tag) {
@@ -306,7 +350,46 @@ namespace MLAgents.CommunicatorObjects {
           }
         }
       }
+    #endif
     }
+
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    void pb::IBufferMessage.InternalMergeFrom(ref pb::ParseContext input) {
+      uint tag;
+      while ((tag = input.ReadTag()) != 0) {
+        switch(tag) {
+          default:
+            _unknownFields = pb::UnknownFieldSet.MergeFieldFrom(_unknownFields, ref input);
+            break;
+          case 8: {
+            Width = input.ReadInt32();
+            break;
+          }
+          case 16: {
+            Height = input.ReadInt32();
+            break;
+          }
+          case 24: {
+            QualityLevel = input.ReadInt32();
+            break;
+          }
+          case 37: {
+            TimeScale = input.ReadFloat();
+            break;
+          }
+          case 40: {
+            TargetFrameRate = input.ReadInt32();
+            break;
+          }
+          case 48: {
+            ShowMonitor = input.ReadBool();
+            break;
+          }
+        }
+      }
+    }
+    #endif
 
   }
 

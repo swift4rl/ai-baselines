@@ -46,7 +46,11 @@ namespace MLAgents.CommunicatorObjects {
   /// <summary>
   /// The initializaiton message - this is typically sent from the Python trainer to the C# environment.
   /// </summary>
-  internal sealed partial class UnityRLInitializationInputProto : pb::IMessage<UnityRLInitializationInputProto> {
+  internal sealed partial class UnityRLInitializationInputProto : pb::IMessage<UnityRLInitializationInputProto>
+  #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+      , pb::IBufferMessage
+  #endif
+  {
     private static readonly pb::MessageParser<UnityRLInitializationInputProto> _parser = new pb::MessageParser<UnityRLInitializationInputProto>(() => new UnityRLInitializationInputProto());
     private pb::UnknownFieldSet _unknownFields;
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -176,6 +180,9 @@ namespace MLAgents.CommunicatorObjects {
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     public void WriteTo(pb::CodedOutputStream output) {
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+      output.WriteRawMessage(this);
+    #else
       if (Seed != 0) {
         output.WriteRawTag(8);
         output.WriteInt32(Seed);
@@ -195,7 +202,33 @@ namespace MLAgents.CommunicatorObjects {
       if (_unknownFields != null) {
         _unknownFields.WriteTo(output);
       }
+    #endif
     }
+
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    void pb::IBufferMessage.InternalWriteTo(ref pb::WriteContext output) {
+      if (Seed != 0) {
+        output.WriteRawTag(8);
+        output.WriteInt32(Seed);
+      }
+      if (CommunicationVersion.Length != 0) {
+        output.WriteRawTag(18);
+        output.WriteString(CommunicationVersion);
+      }
+      if (PackageVersion.Length != 0) {
+        output.WriteRawTag(26);
+        output.WriteString(PackageVersion);
+      }
+      if (capabilities_ != null) {
+        output.WriteRawTag(34);
+        output.WriteMessage(Capabilities);
+      }
+      if (_unknownFields != null) {
+        _unknownFields.WriteTo(ref output);
+      }
+    }
+    #endif
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     public int CalculateSize() {
@@ -243,6 +276,9 @@ namespace MLAgents.CommunicatorObjects {
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     public void MergeFrom(pb::CodedInputStream input) {
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+      input.ReadRawMessage(this);
+    #else
       uint tag;
       while ((tag = input.ReadTag()) != 0) {
         switch(tag) {
@@ -270,7 +306,41 @@ namespace MLAgents.CommunicatorObjects {
           }
         }
       }
+    #endif
     }
+
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    void pb::IBufferMessage.InternalMergeFrom(ref pb::ParseContext input) {
+      uint tag;
+      while ((tag = input.ReadTag()) != 0) {
+        switch(tag) {
+          default:
+            _unknownFields = pb::UnknownFieldSet.MergeFieldFrom(_unknownFields, ref input);
+            break;
+          case 8: {
+            Seed = input.ReadInt32();
+            break;
+          }
+          case 18: {
+            CommunicationVersion = input.ReadString();
+            break;
+          }
+          case 26: {
+            PackageVersion = input.ReadString();
+            break;
+          }
+          case 34: {
+            if (capabilities_ == null) {
+              Capabilities = new global::MLAgents.CommunicatorObjects.UnityRLCapabilitiesProto();
+            }
+            input.ReadMessage(Capabilities);
+            break;
+          }
+        }
+      }
+    }
+    #endif
 
   }
 

@@ -43,7 +43,11 @@ namespace MLAgents.CommunicatorObjects {
 
   }
   #region Messages
-  internal sealed partial class BrainParametersProto : pb::IMessage<BrainParametersProto> {
+  internal sealed partial class BrainParametersProto : pb::IMessage<BrainParametersProto>
+  #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+      , pb::IBufferMessage
+  #endif
+  {
     private static readonly pb::MessageParser<BrainParametersProto> _parser = new pb::MessageParser<BrainParametersProto>(() => new BrainParametersProto());
     private pb::UnknownFieldSet _unknownFields;
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -176,6 +180,9 @@ namespace MLAgents.CommunicatorObjects {
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     public void WriteTo(pb::CodedOutputStream output) {
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+      output.WriteRawMessage(this);
+    #else
       vectorActionSize_.WriteTo(output, _repeated_vectorActionSize_codec);
       vectorActionDescriptions_.WriteTo(output, _repeated_vectorActionDescriptions_codec);
       if (VectorActionSpaceType != global::MLAgents.CommunicatorObjects.SpaceTypeProto.Discrete) {
@@ -193,7 +200,31 @@ namespace MLAgents.CommunicatorObjects {
       if (_unknownFields != null) {
         _unknownFields.WriteTo(output);
       }
+    #endif
     }
+
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    void pb::IBufferMessage.InternalWriteTo(ref pb::WriteContext output) {
+      vectorActionSize_.WriteTo(ref output, _repeated_vectorActionSize_codec);
+      vectorActionDescriptions_.WriteTo(ref output, _repeated_vectorActionDescriptions_codec);
+      if (VectorActionSpaceType != global::MLAgents.CommunicatorObjects.SpaceTypeProto.Discrete) {
+        output.WriteRawTag(48);
+        output.WriteEnum((int) VectorActionSpaceType);
+      }
+      if (BrainName.Length != 0) {
+        output.WriteRawTag(58);
+        output.WriteString(BrainName);
+      }
+      if (IsTraining != false) {
+        output.WriteRawTag(64);
+        output.WriteBool(IsTraining);
+      }
+      if (_unknownFields != null) {
+        _unknownFields.WriteTo(ref output);
+      }
+    }
+    #endif
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     public int CalculateSize() {
@@ -236,6 +267,9 @@ namespace MLAgents.CommunicatorObjects {
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     public void MergeFrom(pb::CodedInputStream input) {
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+      input.ReadRawMessage(this);
+    #else
       uint tag;
       while ((tag = input.ReadTag()) != 0) {
         switch(tag) {
@@ -265,7 +299,43 @@ namespace MLAgents.CommunicatorObjects {
           }
         }
       }
+    #endif
     }
+
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    void pb::IBufferMessage.InternalMergeFrom(ref pb::ParseContext input) {
+      uint tag;
+      while ((tag = input.ReadTag()) != 0) {
+        switch(tag) {
+          default:
+            _unknownFields = pb::UnknownFieldSet.MergeFieldFrom(_unknownFields, ref input);
+            break;
+          case 26:
+          case 24: {
+            vectorActionSize_.AddEntriesFrom(ref input, _repeated_vectorActionSize_codec);
+            break;
+          }
+          case 42: {
+            vectorActionDescriptions_.AddEntriesFrom(ref input, _repeated_vectorActionDescriptions_codec);
+            break;
+          }
+          case 48: {
+            VectorActionSpaceType = (global::MLAgents.CommunicatorObjects.SpaceTypeProto) input.ReadEnum();
+            break;
+          }
+          case 58: {
+            BrainName = input.ReadString();
+            break;
+          }
+          case 64: {
+            IsTraining = input.ReadBool();
+            break;
+          }
+        }
+      }
+    }
+    #endif
 
   }
 

@@ -49,7 +49,11 @@ namespace MLAgents.CommunicatorObjects {
   /// <summary>
   /// The request message containing the academy's parameters.
   /// </summary>
-  internal sealed partial class UnityRLInitializationOutputProto : pb::IMessage<UnityRLInitializationOutputProto> {
+  internal sealed partial class UnityRLInitializationOutputProto : pb::IMessage<UnityRLInitializationOutputProto>
+  #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+      , pb::IBufferMessage
+  #endif
+  {
     private static readonly pb::MessageParser<UnityRLInitializationOutputProto> _parser = new pb::MessageParser<UnityRLInitializationOutputProto>(() => new UnityRLInitializationOutputProto());
     private pb::UnknownFieldSet _unknownFields;
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -206,6 +210,9 @@ namespace MLAgents.CommunicatorObjects {
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     public void WriteTo(pb::CodedOutputStream output) {
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+      output.WriteRawMessage(this);
+    #else
       if (Name.Length != 0) {
         output.WriteRawTag(10);
         output.WriteString(Name);
@@ -230,7 +237,38 @@ namespace MLAgents.CommunicatorObjects {
       if (_unknownFields != null) {
         _unknownFields.WriteTo(output);
       }
+    #endif
     }
+
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    void pb::IBufferMessage.InternalWriteTo(ref pb::WriteContext output) {
+      if (Name.Length != 0) {
+        output.WriteRawTag(10);
+        output.WriteString(Name);
+      }
+      if (CommunicationVersion.Length != 0) {
+        output.WriteRawTag(18);
+        output.WriteString(CommunicationVersion);
+      }
+      if (LogPath.Length != 0) {
+        output.WriteRawTag(26);
+        output.WriteString(LogPath);
+      }
+      brainParameters_.WriteTo(ref output, _repeated_brainParameters_codec);
+      if (PackageVersion.Length != 0) {
+        output.WriteRawTag(58);
+        output.WriteString(PackageVersion);
+      }
+      if (capabilities_ != null) {
+        output.WriteRawTag(66);
+        output.WriteMessage(Capabilities);
+      }
+      if (_unknownFields != null) {
+        _unknownFields.WriteTo(ref output);
+      }
+    }
+    #endif
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     public int CalculateSize() {
@@ -286,6 +324,9 @@ namespace MLAgents.CommunicatorObjects {
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     public void MergeFrom(pb::CodedInputStream input) {
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+      input.ReadRawMessage(this);
+    #else
       uint tag;
       while ((tag = input.ReadTag()) != 0) {
         switch(tag) {
@@ -321,7 +362,49 @@ namespace MLAgents.CommunicatorObjects {
           }
         }
       }
+    #endif
     }
+
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    void pb::IBufferMessage.InternalMergeFrom(ref pb::ParseContext input) {
+      uint tag;
+      while ((tag = input.ReadTag()) != 0) {
+        switch(tag) {
+          default:
+            _unknownFields = pb::UnknownFieldSet.MergeFieldFrom(_unknownFields, ref input);
+            break;
+          case 10: {
+            Name = input.ReadString();
+            break;
+          }
+          case 18: {
+            CommunicationVersion = input.ReadString();
+            break;
+          }
+          case 26: {
+            LogPath = input.ReadString();
+            break;
+          }
+          case 42: {
+            brainParameters_.AddEntriesFrom(ref input, _repeated_brainParameters_codec);
+            break;
+          }
+          case 58: {
+            PackageVersion = input.ReadString();
+            break;
+          }
+          case 66: {
+            if (capabilities_ == null) {
+              Capabilities = new global::MLAgents.CommunicatorObjects.UnityRLCapabilitiesProto();
+            }
+            input.ReadMessage(Capabilities);
+            break;
+          }
+        }
+      }
+    }
+    #endif
 
   }
 

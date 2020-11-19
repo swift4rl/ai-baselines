@@ -52,7 +52,11 @@ namespace MLAgents.CommunicatorObjects {
   #endregion
 
   #region Messages
-  internal sealed partial class ObservationProto : pb::IMessage<ObservationProto> {
+  internal sealed partial class ObservationProto : pb::IMessage<ObservationProto>
+  #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+      , pb::IBufferMessage
+  #endif
+  {
     private static readonly pb::MessageParser<ObservationProto> _parser = new pb::MessageParser<ObservationProto>(() => new ObservationProto());
     private pb::UnknownFieldSet _unknownFields;
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -200,6 +204,9 @@ namespace MLAgents.CommunicatorObjects {
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     public void WriteTo(pb::CodedOutputStream output) {
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+      output.WriteRawMessage(this);
+    #else
       shape_.WriteTo(output, _repeated_shape_codec);
       if (CompressionType != global::MLAgents.CommunicatorObjects.CompressionTypeProto.None) {
         output.WriteRawTag(16);
@@ -216,7 +223,30 @@ namespace MLAgents.CommunicatorObjects {
       if (_unknownFields != null) {
         _unknownFields.WriteTo(output);
       }
+    #endif
     }
+
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    void pb::IBufferMessage.InternalWriteTo(ref pb::WriteContext output) {
+      shape_.WriteTo(ref output, _repeated_shape_codec);
+      if (CompressionType != global::MLAgents.CommunicatorObjects.CompressionTypeProto.None) {
+        output.WriteRawTag(16);
+        output.WriteEnum((int) CompressionType);
+      }
+      if (observationDataCase_ == ObservationDataOneofCase.CompressedData) {
+        output.WriteRawTag(26);
+        output.WriteBytes(CompressedData);
+      }
+      if (observationDataCase_ == ObservationDataOneofCase.FloatData) {
+        output.WriteRawTag(34);
+        output.WriteMessage(FloatData);
+      }
+      if (_unknownFields != null) {
+        _unknownFields.WriteTo(ref output);
+      }
+    }
+    #endif
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     public int CalculateSize() {
@@ -263,6 +293,9 @@ namespace MLAgents.CommunicatorObjects {
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     public void MergeFrom(pb::CodedInputStream input) {
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+      input.ReadRawMessage(this);
+    #else
       uint tag;
       while ((tag = input.ReadTag()) != 0) {
         switch(tag) {
@@ -293,13 +326,54 @@ namespace MLAgents.CommunicatorObjects {
           }
         }
       }
+    #endif
     }
+
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    void pb::IBufferMessage.InternalMergeFrom(ref pb::ParseContext input) {
+      uint tag;
+      while ((tag = input.ReadTag()) != 0) {
+        switch(tag) {
+          default:
+            _unknownFields = pb::UnknownFieldSet.MergeFieldFrom(_unknownFields, ref input);
+            break;
+          case 10:
+          case 8: {
+            shape_.AddEntriesFrom(ref input, _repeated_shape_codec);
+            break;
+          }
+          case 16: {
+            CompressionType = (global::MLAgents.CommunicatorObjects.CompressionTypeProto) input.ReadEnum();
+            break;
+          }
+          case 26: {
+            CompressedData = input.ReadBytes();
+            break;
+          }
+          case 34: {
+            global::MLAgents.CommunicatorObjects.ObservationProto.Types.FloatData subBuilder = new global::MLAgents.CommunicatorObjects.ObservationProto.Types.FloatData();
+            if (observationDataCase_ == ObservationDataOneofCase.FloatData) {
+              subBuilder.MergeFrom(FloatData);
+            }
+            input.ReadMessage(subBuilder);
+            FloatData = subBuilder;
+            break;
+          }
+        }
+      }
+    }
+    #endif
 
     #region Nested types
     /// <summary>Container for nested types declared in the ObservationProto message type.</summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     public static partial class Types {
-      internal sealed partial class FloatData : pb::IMessage<FloatData> {
+      internal sealed partial class FloatData : pb::IMessage<FloatData>
+      #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+          , pb::IBufferMessage
+      #endif
+      {
         private static readonly pb::MessageParser<FloatData> _parser = new pb::MessageParser<FloatData>(() => new FloatData());
         private pb::UnknownFieldSet _unknownFields;
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -377,11 +451,25 @@ namespace MLAgents.CommunicatorObjects {
 
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
         public void WriteTo(pb::CodedOutputStream output) {
+        #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+          output.WriteRawMessage(this);
+        #else
           data_.WriteTo(output, _repeated_data_codec);
           if (_unknownFields != null) {
             _unknownFields.WriteTo(output);
           }
+        #endif
         }
+
+        #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+        void pb::IBufferMessage.InternalWriteTo(ref pb::WriteContext output) {
+          data_.WriteTo(ref output, _repeated_data_codec);
+          if (_unknownFields != null) {
+            _unknownFields.WriteTo(ref output);
+          }
+        }
+        #endif
 
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
         public int CalculateSize() {
@@ -404,6 +492,9 @@ namespace MLAgents.CommunicatorObjects {
 
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
         public void MergeFrom(pb::CodedInputStream input) {
+        #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+          input.ReadRawMessage(this);
+        #else
           uint tag;
           while ((tag = input.ReadTag()) != 0) {
             switch(tag) {
@@ -417,7 +508,27 @@ namespace MLAgents.CommunicatorObjects {
               }
             }
           }
+        #endif
         }
+
+        #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+        void pb::IBufferMessage.InternalMergeFrom(ref pb::ParseContext input) {
+          uint tag;
+          while ((tag = input.ReadTag()) != 0) {
+            switch(tag) {
+              default:
+                _unknownFields = pb::UnknownFieldSet.MergeFieldFrom(_unknownFields, ref input);
+                break;
+              case 10:
+              case 13: {
+                data_.AddEntriesFrom(ref input, _repeated_data_codec);
+                break;
+              }
+            }
+          }
+        }
+        #endif
 
       }
 

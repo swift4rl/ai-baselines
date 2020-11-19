@@ -44,7 +44,11 @@ namespace MLAgents.CommunicatorObjects {
 
   }
   #region Messages
-  internal sealed partial class UnityInputProto : pb::IMessage<UnityInputProto> {
+  internal sealed partial class UnityInputProto : pb::IMessage<UnityInputProto>
+  #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+      , pb::IBufferMessage
+  #endif
+  {
     private static readonly pb::MessageParser<UnityInputProto> _parser = new pb::MessageParser<UnityInputProto>(() => new UnityInputProto());
     private pb::UnknownFieldSet _unknownFields;
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -137,6 +141,9 @@ namespace MLAgents.CommunicatorObjects {
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     public void WriteTo(pb::CodedOutputStream output) {
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+      output.WriteRawMessage(this);
+    #else
       if (rlInput_ != null) {
         output.WriteRawTag(10);
         output.WriteMessage(RlInput);
@@ -148,7 +155,25 @@ namespace MLAgents.CommunicatorObjects {
       if (_unknownFields != null) {
         _unknownFields.WriteTo(output);
       }
+    #endif
     }
+
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    void pb::IBufferMessage.InternalWriteTo(ref pb::WriteContext output) {
+      if (rlInput_ != null) {
+        output.WriteRawTag(10);
+        output.WriteMessage(RlInput);
+      }
+      if (rlInitializationInput_ != null) {
+        output.WriteRawTag(18);
+        output.WriteMessage(RlInitializationInput);
+      }
+      if (_unknownFields != null) {
+        _unknownFields.WriteTo(ref output);
+      }
+    }
+    #endif
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     public int CalculateSize() {
@@ -187,6 +212,9 @@ namespace MLAgents.CommunicatorObjects {
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     public void MergeFrom(pb::CodedInputStream input) {
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+      input.ReadRawMessage(this);
+    #else
       uint tag;
       while ((tag = input.ReadTag()) != 0) {
         switch(tag) {
@@ -209,7 +237,36 @@ namespace MLAgents.CommunicatorObjects {
           }
         }
       }
+    #endif
     }
+
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    void pb::IBufferMessage.InternalMergeFrom(ref pb::ParseContext input) {
+      uint tag;
+      while ((tag = input.ReadTag()) != 0) {
+        switch(tag) {
+          default:
+            _unknownFields = pb::UnknownFieldSet.MergeFieldFrom(_unknownFields, ref input);
+            break;
+          case 10: {
+            if (rlInput_ == null) {
+              RlInput = new global::MLAgents.CommunicatorObjects.UnityRLInputProto();
+            }
+            input.ReadMessage(RlInput);
+            break;
+          }
+          case 18: {
+            if (rlInitializationInput_ == null) {
+              RlInitializationInput = new global::MLAgents.CommunicatorObjects.UnityRLInitializationInputProto();
+            }
+            input.ReadMessage(RlInitializationInput);
+            break;
+          }
+        }
+      }
+    }
+    #endif
 
   }
 
