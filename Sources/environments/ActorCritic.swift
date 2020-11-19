@@ -18,11 +18,10 @@ struct ActorNetwork: Layer {
     typealias Input = Tensor<Float32>
     typealias Output = Tensor<Float32>
 
-    var l1, l2, l3: Dense<Float>
+    var l1, l3: Dense<Float>
 
-    init(l1: Dense<Float>, l2: Dense<Float>, hiddenSize: Int, actionCount: Int) {
+    init(l1: Dense<Float>, hiddenSize: Int, actionCount: Int) {
         self.l1 = l1
-        self.l2 = l2
         l3 = Dense<Float>(
             inputSize: hiddenSize,
             outputSize: actionCount,
@@ -33,7 +32,7 @@ struct ActorNetwork: Layer {
 
     @differentiable
     func callAsFunction(_ input: Input) -> Output {
-        return input.sequenced(through: l1, l2, l3)
+        return input.sequenced(through: l1, l3)
     }
 }
 
@@ -41,11 +40,10 @@ struct CriticNetwork: Layer {
     typealias Input = Tensor<Float32>
     typealias Output = Tensor<Float32>
 
-    var l1, l2, l3: Dense<Float>
+    var l1, l3: Dense<Float>
 
-    init(l1: Dense<Float>, l2: Dense<Float>, hiddenSize: Int) {
+    init(l1: Dense<Float>, hiddenSize: Int) {
         self.l1 = l1
-        self.l2 = l2
         l3 = Dense<Float>(
             inputSize: hiddenSize,
             outputSize: 1,
@@ -56,7 +54,7 @@ struct CriticNetwork: Layer {
 
     @differentiable
     func callAsFunction(_ input: Input) -> Output {
-        return input.sequenced(through: l1, l2, l3)
+        return input.sequenced(through: l1, l3)
     }
 }
 
@@ -74,21 +72,20 @@ struct ActorCritic: Layer {
             activation: tanh,
             weightInitializer: heNormal(seed: TensorFlowSeed(1,1))
         )
-        let l2 = Dense<Float>(
-            inputSize: hiddenSize,
+        let l11 = Dense<Float>(
+            inputSize: observationSize,
             outputSize: hiddenSize,
             activation: tanh,
             weightInitializer: heNormal(seed: TensorFlowSeed(1,1))
         )
         self.actorNetwork = ActorNetwork(
             l1: l1,
-            l2: l2,
             hiddenSize: hiddenSize,
             actionCount: actionCount
         )
+        
         self.criticNetwork = CriticNetwork(
-            l1: l1,
-            l2: l2,
+            l1: l11,
             hiddenSize: hiddenSize
         )
     }
@@ -96,6 +93,6 @@ struct ActorCritic: Layer {
     @differentiable
     func callAsFunction(_ state: Input) -> Output {
         precondition(state.rank == 2, "The input must be 2-D ([batch size, state size]).")
-        return DiagGaussianProbabilityDistribution(flat: self.actorNetwork(state).flattened())
+        return DiagGaussianProbabilityDistribution(flat: self.actorNetwork(state))
     }
 }

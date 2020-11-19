@@ -35,7 +35,12 @@ public struct DiagGaussianProbabilityDistribution: DifferentiableDistribution, K
     func flatparam() -> Tensor<Float32> { self.flat }
 
     @inlinable
-    public func mode() -> Tensor<Float32> { self.mean }
+    @differentiable
+    public func mode() -> Tensor<Float32> {
+       // let mode = tanh(self.mean)
+       // print("mean: \(self.mean) mode: \(mode)")
+        return tanh(self.mean)
+    }
 
     @inlinable
     @differentiable
@@ -74,6 +79,7 @@ public struct DiagGaussianProbabilityDistribution: DifferentiableDistribution, K
     @inlinable
     @differentiable
     public func sample() -> Tensor<Float32> {
+       // print("mean: \(self.mean) mode: \(tanh(self.mean))")
         return tanh(self.mean + self.std * Tensor<Float32>(randomNormal: self.mean.shape))
     }
 }

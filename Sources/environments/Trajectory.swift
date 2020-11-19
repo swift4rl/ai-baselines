@@ -87,7 +87,7 @@ struct Trajectory {
             rewards.insert(discountedReward, at: 0)
         }
         var returns = Tensor<Float32>(rewards)
-        return (returns - returns.mean()) / (returns.standardDeviation() + 1e-5)
+        return returns;
     }
     
     mutating func append(state: Tensor<Float32>, action: Tensor<Float32>, reward: Float, logProb: Tensor<Float32>, isDone: Bool) {

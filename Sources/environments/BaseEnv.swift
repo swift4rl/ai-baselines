@@ -680,7 +680,7 @@ open class BaseEnv: UnityEnvironmentListener {
                         model.updateTrajectory(action: previousAction.flattened(), logProb: logLoss, observation: obs)
                     }
                     let dist = model.predict(state: state)
-                    var action = dist.sample()
+                    var action = dist.mode()
                     let logLoss = dist.neglogp(of: action)
                     if let envSpec = envSpecs[brainName] {
                         action = action.reshaped(to: TensorShape(1, envSpec.actionSize))
