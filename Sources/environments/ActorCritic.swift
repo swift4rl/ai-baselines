@@ -18,11 +18,11 @@ struct ActorNetwork: Layer {
     typealias Input = Tensor<Float32>
     typealias Output = Tensor<Float32>
 
-    var l1, l3: Dense<Float>
+    var l1, l2: Dense<Float>
 
     init(l1: Dense<Float>, hiddenSize: Int, actionCount: Int) {
         self.l1 = l1
-        l3 = Dense<Float>(
+        self.l2 = Dense<Float>(
             inputSize: hiddenSize,
             outputSize: actionCount,
             activation: tanh,
@@ -32,7 +32,7 @@ struct ActorNetwork: Layer {
 
     @differentiable
     func callAsFunction(_ input: Input) -> Output {
-        return input.sequenced(through: l1, l3)
+        return input.sequenced(through: l1, l2)
     }
 }
 
@@ -40,11 +40,11 @@ struct CriticNetwork: Layer {
     typealias Input = Tensor<Float32>
     typealias Output = Tensor<Float32>
 
-    var l1, l3: Dense<Float>
+    var l1, l2: Dense<Float>
 
     init(l1: Dense<Float>, hiddenSize: Int) {
         self.l1 = l1
-        l3 = Dense<Float>(
+        l2 = Dense<Float>(
             inputSize: hiddenSize,
             outputSize: 1,
             activation: tanh,
@@ -54,7 +54,7 @@ struct CriticNetwork: Layer {
 
     @differentiable
     func callAsFunction(_ input: Input) -> Output {
-        return input.sequenced(through: l1, l3)
+        return input.sequenced(through: l1, l2)
     }
 }
 
@@ -70,14 +70,9 @@ struct ActorCritic: Layer {
             inputSize: observationSize,
             outputSize: hiddenSize,
             activation: tanh,
-            weightInitializer: heNormal(seed: TensorFlowSeed(1,1))
+            weightInitializer: heUniform(seed: TensorFlowSeed(1,1))
         )
-        let l11 = Dense<Float>(
-            inputSize: observationSize,
-            outputSize: hiddenSize,
-            activation: tanh,
-            weightInitializer: heNormal(seed: TensorFlowSeed(1,1))
-        )
+        
         self.actorNetwork = ActorNetwork(
             l1: l1,
             hiddenSize: hiddenSize,
@@ -85,7 +80,7 @@ struct ActorCritic: Layer {
         )
         
         self.criticNetwork = CriticNetwork(
-            l1: l11,
+            l1: l1,
             hiddenSize: hiddenSize
         )
     }

@@ -18,7 +18,7 @@ let actionCount: Int = 2
 
 let hiddenSize: Int = 64
 /// The learning rate for both the actor and the critic.
-let learningRate: Float = 0.003
+let learningRate: Float = 0.01
 /// The discount factor. This measures how much to "discount" the future rewards
 /// that the agent will receive. The discount factor must be from 0 to 1
 /// (inclusive). Discount factor of 0 means that the agent only considers the
@@ -28,21 +28,21 @@ let learningRate: Float = 0.003
 let discount: Float = 0.99
 /// Number of epochs to run minibatch updates once enough trajectory segments are collected. Denoted
 /// K in the PPO paper.
-let epochs: Int = 3
+let epochs: Int = 10
 /// Parameter to clip the probability ratio. The ratio is clipped to [1-clipEpsilon, 1+clipEpsilon].
 /// Denoted epsilon in the PPO paper.
 let clipEpsilon: Float = 0.2
 /// Coefficient for the entropy bonus added to the objective. Denoted c_2 in the PPO paper.
-let entropyCoefficient: Float = 0.0001
+let entropyCoefficient: Float = 0.00001
 /// Maximum number of episodes to train the agent. The training is terminated
 /// early if maximum score is achieved consecutively 10 times.
 let maxEpisodes: Int = Int.max
 /// Maximum timestep per episode.
 let maxTimesteps: Int = Int.max
 /// The length of the trajectory segment. Denoted T in the PPO paper.
-let updateTimestep = 10240
+let updateTimestep = 5120
 
-let nMiniBatches = 160
+let nMiniBatches = 40
 //
 //let updateTimestep = 10
 //

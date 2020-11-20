@@ -6,13 +6,27 @@
 //
 
 import Foundation
-import ReinforcementLearning
 import TensorFlow
 import Darwin
 
+// Below code comes from eaplatanios/swift-rl:
+// https://github.com/eaplatanios/swift-rl/blob/master/Sources/ReinforcementLearning/Distributions/Distribution.swift
+public protocol Distribution {
+  associatedtype Value
+
+  func entropy() -> Tensor<Float>
+
+  /// Returns a random sample drawn from this distribution.
+  func sample() -> Value
+}
+
+public protocol DifferentiableDistribution: Distribution, Differentiable {
+  @differentiable(wrt: self)
+  func entropy() -> Tensor<Float>
+}
+
 public struct DiagGaussianProbabilityDistribution: DifferentiableDistribution, KeyPathIterable {
         
-    public var flat: Tensor<Float32>
     public var mean: Tensor<Float32>
     public var logstd: Tensor<Float32>
     public var std: Tensor<Float32>
@@ -23,37 +37,44 @@ public struct DiagGaussianProbabilityDistribution: DifferentiableDistribution, K
     :param flat: ([float]) the multivariate Gaussian input data
      */
     @inlinable
-    @differentiable(wrt: flat)
+    @differentiable
     init(flat: Tensor<Float32>){
-        self.flat = flat
         let x = flat.split(count: 2, alongAxis: flat.shape.count - 1)
         self.mean = x[0]
-        self.logstd = x[1]
-        self.std = exp(self.logstd)
-}
+        self.logstd = x[1].clipped(min: -20, max: 2)
+        self.std = exp(x[1])
+    }
     
-    func flatparam() -> Tensor<Float32> { self.flat }
 
     @inlinable
-    @differentiable
+    @noDerivative
     public func mode() -> Tensor<Float32> {
        // let mode = tanh(self.mean)
        // print("mean: \(self.mean) mode: \(mode)")
-        return tanh(self.mean)
+        return self.mean
+    }
+    
+    @inlinable
+    @noDerivative
+    public func sample() -> Tensor<Float32> {
+       // print("mean: \(self.mean) mode: \(tanh(self.mean))")
+//        let random = withoutDerivative(at: Tensor<Float32>(randomNormal: self.mean.shape))
+//        return (self.mean + self.std * random).clipped(min: -3, max: 3) / 3
+        return self.mean
     }
 
     @inlinable
     @differentiable
     public func neglogp(of x: Tensor<Float32>) -> Tensor<Float32> {
-        let mse =  ( ((x - self.mean) / (self.std + 1e-5) ).squared()).sum(alongAxes: -1)
+        let mse =  ((x - self.mean) / (self.std + 1e-5) ).squared()
         
-        let sigmaTrace = logstd.sum(alongAxes: -1)
+        let sigmaTrace = 2 * logstd
 
         let log2pi = log(2.0 * Float32.pi)
 
-        let logLikelihood = 0.5 * mse + sigmaTrace + 0.5 * log2pi
+        let logLikelihood = -0.5 * (mse + sigmaTrace + log2pi)
 
-        return logLikelihood
+        return logLikelihood.sum(alongAxes: -1)
     }
     
     @differentiable
@@ -76,10 +97,4 @@ public struct DiagGaussianProbabilityDistribution: DifferentiableDistribution, K
         (self.logstd + 0.5 * log(2.0 * Float32.pi * 2.718281828459045)).sum(alongAxes: -1)
     }
 
-    @inlinable
-    @differentiable
-    public func sample() -> Tensor<Float32> {
-       // print("mean: \(self.mean) mode: \(tanh(self.mean))")
-        return tanh(self.mean + self.std * Tensor<Float32>(randomNormal: self.mean.shape))
-    }
 }

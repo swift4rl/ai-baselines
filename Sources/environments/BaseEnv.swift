@@ -680,12 +680,12 @@ open class BaseEnv: UnityEnvironmentListener {
                         model.updateTrajectory(action: previousAction.flattened(), logProb: logLoss, observation: obs)
                     }
                     let dist = model.predict(state: state)
-                    var action = dist.mode()
-                    let logLoss = dist.neglogp(of: action)
+                    var action = dist.sample()
+                    let logProbs = dist.neglogp(of: action)
                     if let envSpec = envSpecs[brainName] {
                         action = action.reshaped(to: TensorShape(1, envSpec.actionSize))
                     }
-                    _ = try? self.setActions(behaviorName: brainName, action: action, logLoss: logLoss)
+                    _ = try? self.setActions(behaviorName: brainName, action: action, logLoss: logProbs)
                     self.onNext?(model, reward, isDone)
                 }
                 
@@ -731,7 +731,9 @@ open class BaseEnv: UnityEnvironmentListener {
 //        }
         let done = info is TerminalSteps ? true : false
         if let obs = defaultObservationSingle {
-            return .SingleObservation(observation: obs.reshaped(to: TensorShape(1, obs.shape[0])),
+            var state = obs.reshaped(to: TensorShape(1, obs.shape[0]))
+            state = state.batchNormalized(alongAxis: -1)
+            return .SingleObservation(observation: state,
                                       reward: info.reward.scalars[0],
                                       done: done,
                                       info: [:])

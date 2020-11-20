@@ -77,14 +77,14 @@ struct Trajectory {
     
     @noDerivative
     public func returns(discount: Float32) -> Tensor<Float32>{
-        var rewards : [ Float32 ] = []
+        var discountedRewards : [ Float32 ] = Array(repeating: 0, count: self.rewards.count)
         var discountedReward: Float32 = 0
         for i in (0..<self.rewards.count).reversed() {
             if self.isDones[i] {
                 discountedReward = 0
             }
             discountedReward = self.rewards[i] + (discount * discountedReward)
-            rewards.insert(discountedReward, at: 0)
+            discountedRewards[i] = discountedReward
         }
         let returns = Tensor<Float32>(rewards)
         return returns;
