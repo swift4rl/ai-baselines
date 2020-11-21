@@ -17,11 +17,12 @@ import PythonKit
 
 open class PPO: Model {
     var trajectory: Trajectory
-    let learningRate: Float
-    let discount: Float
+    let learningRate: Float32
+    let discount: Float32
     let epochs: Int
-    let clipEpsilon: Float
-    let entropyCoefficient: Float
+    let clipEpsilon: Float32
+    let valueClipEpsilon: Float32
+    let entropyCoefficient: Float32
     let valueLossCoefficient: Float32
     let maxGradNorm: Float32
     let lam: Float32
@@ -36,11 +37,12 @@ open class PPO: Model {
         observationSize: Int,
         hiddenSize: Int,
         actionCount: Int,
-        learningRate: Float,
-        discount: Float,
+        learningRate: Float32,
+        discount: Float32,
         epochs: Int,
-        clipEpsilon: Float,
-        entropyCoefficient: Float,
+        clipEpsilon: Float32,
+        valueClipEpsilon: Float32,
+        entropyCoefficient: Float32,
         valueLossCoefficient: Float32 = 0.5,
         maxGradNorm: Float32 = 0.5,
         lam: Float32 = 0.95,
@@ -51,6 +53,7 @@ open class PPO: Model {
         self.discount = discount
         self.epochs = epochs
         self.clipEpsilon = clipEpsilon
+        self.valueClipEpsilon = valueClipEpsilon
         self.entropyCoefficient = entropyCoefficient
         self.valueLossCoefficient = valueLossCoefficient
         self.maxGradNorm = maxGradNorm
@@ -127,13 +130,13 @@ open class PPO: Model {
                     let pgLosses2 = advantages * ratios.clipped(min: 1 - self.clipEpsilon, max: 1 + self.clipEpsilon)
                     
                     let actorLoss = -Tensor(stacking: [pgLosses, pgLosses2]).min(alongAxes: 0).flattened().mean()
-                    //let entropyBonus: Tensor<Float> = Tensor<Float>(self.entropyCoefficient * dist.entropy().flattened()).mean()
+                    let entropyBonus: Tensor<Float> = Tensor<Float>(self.entropyCoefficient * dist.entropy().flattened()).mean()
                     let (criticLoss, criticGradients) = valueWithGradient(at: self.actorCritic.criticNetwork) { criticNetwork -> Tensor<Float> in
                         let vpred = criticNetwork.forward(states).flattened()
-                        let vpredClipped = oldVPred + (vpred -  oldVPred).clipped(min: -self.clipEpsilon, max: self.clipEpsilon)
+                        let vpredClipped = oldVPred + (vpred -  oldVPred).clipped(min: -self.valueClipEpsilon, max: self.valueClipEpsilon)
                         let vfLoss1 = squaredDifference(vpred, rewardMiniBatch)
                         let vfLoss2 = squaredDifference(vpredClipped, rewardMiniBatch)
-                        let vfLoss = 0.5 * Tensor(stacking: [vfLoss1, vfLoss2]).max(alongAxes: 0).flattened()
+                        let vfLoss = Tensor(stacking: [vfLoss1, vfLoss2]).max(alongAxes: 0).flattened()
                         
                         return vfLoss.mean() * self.valueLossCoefficient
                     }
@@ -141,7 +144,7 @@ open class PPO: Model {
                     //criticGradients.clipByGlobalNorm(clipNorm: self.maxGradNorm)
                     self.criticOptimizer.update(&self.actorCritic.criticNetwork, along: criticGradients)
                     criticLosses.append(criticLoss.scalarized())
-                    return actorLoss + criticLoss //- entropyBonus
+                    return actorLoss + criticLoss - entropyBonus
                 }
                 
                 //actorGradients.clipByGlobalNorm(clipNorm: self.maxGradNorm)

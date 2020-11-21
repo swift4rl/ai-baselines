@@ -18,31 +18,35 @@ let actionCount: Int = 2
 
 let hiddenSize: Int = 64
 /// The learning rate for both the actor and the critic.
-let learningRate: Float = 0.01
+let learningRate: Float32 = 0.0075
 /// The discount factor. This measures how much to "discount" the future rewards
 /// that the agent will receive. The discount factor must be from 0 to 1
 /// (inclusive). Discount factor of 0 means that the agent only considers the
 /// immediate reward and disregards all future rewards. Discount factor of 1
 /// means that the agent values all rewards equally, no matter how distant
 /// in the future they may be. Denoted gamma in the PPO paper.
-let discount: Float = 0.99
+let discount: Float32 = 0.99
 /// Number of epochs to run minibatch updates once enough trajectory segments are collected. Denoted
 /// K in the PPO paper.
-let epochs: Int = 10
+let epochs: Int = 3
 /// Parameter to clip the probability ratio. The ratio is clipped to [1-clipEpsilon, 1+clipEpsilon].
 /// Denoted epsilon in the PPO paper.
-let clipEpsilon: Float = 0.2
+let clipEpsilon: Float32 = 0.5
+
+let valueClipEpsilon: Float32 = 0.5
+
+let valueLossCoefficient: Float32 = 0.9
 /// Coefficient for the entropy bonus added to the objective. Denoted c_2 in the PPO paper.
-let entropyCoefficient: Float = 0.00001
+let entropyCoefficient: Float32 = 1e-4
 /// Maximum number of episodes to train the agent. The training is terminated
 /// early if maximum score is achieved consecutively 10 times.
 let maxEpisodes: Int = Int.max
 /// Maximum timestep per episode.
 let maxTimesteps: Int = Int.max
 /// The length of the trajectory segment. Denoted T in the PPO paper.
-let updateTimestep = 5120
+let updateTimestep = 640
 
-let nMiniBatches = 40
+let nMiniBatches = 10
 //
 //let updateTimestep = 10
 //
@@ -65,7 +69,9 @@ var agent: PPO = PPO(
     discount: discount,
     epochs: epochs,
     clipEpsilon: clipEpsilon,
+    valueClipEpsilon: valueClipEpsilon,
     entropyCoefficient: entropyCoefficient,
+    valueLossCoefficient: valueLossCoefficient,
     nSteps: updateTimestep,
     nMiniBatches: nMiniBatches
 )
@@ -82,8 +88,8 @@ print(appPath)
 let channel = EngineConfigurationChannel()
 
 try channel.setConfigurationParameters(
-    width: 600,
-    height: 600,
+    width: 300,
+    height: 300,
     qualityLevel: 5,
     timeScale: 20,
     targetFrameRate: -1,
