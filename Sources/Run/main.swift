@@ -46,7 +46,7 @@ let maxTimesteps: Int = Int.max
 /// The length of the trajectory segment. Denoted T in the PPO paper.
 let updateStep = 4
 
-let batchSize = 128
+let batchSize = 1024
 //
 //let updateTimestep = 10
 //
