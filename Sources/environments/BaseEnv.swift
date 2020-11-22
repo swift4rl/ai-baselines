@@ -427,7 +427,8 @@ open class BaseEnv: UnityEnvironmentListener {
         set { props.model = newValue }
     }
     
-    var onNext: ((_ model: Model, _ reward: Float32, _ isDone: Bool) -> Void)? = Optional.none
+    var onNextState: ((_ model: Model, _ reward: Float32) -> Void)? = Optional.none
+    var onEndOfEpisode: ((_ model: Model, _ reward: Float32) -> Void)? = Optional.none
     
     static var logger: Logger {
         get { return Defaults.logger}
@@ -542,8 +543,11 @@ open class BaseEnv: UnityEnvironmentListener {
 //            throw UnityException.UnityEnvironmentException(reason: "No Unity environment is loaded.")
 //        }
 //    }
-    public func train(onNext: @escaping (_ model: Model, _ reward: Float32, _ isDone: Bool) -> Void) {
-        self.onNext = onNext
+    
+    public func train(onNextState: @escaping (_ model: Model, _ reward: Float32) -> Void,
+        onEndOfEpisode: @escaping (_ model: Model, _ reward: Float32) -> Void) {
+        self.onEndOfEpisode = onEndOfEpisode
+        self.onNextState = onNextState
         self.communicator?.startServer()
     }
     
@@ -673,6 +677,7 @@ open class BaseEnv: UnityEnvironmentListener {
                     self.gameOver = true
                     obs = self.singleStep(name:brainName, info: terminalStep)
                 } else {
+                    self.gameOver = false
                     obs = self.singleStep(name: brainName, info: decisionStep)
                 }
                 if case let Observation.SingleObservation(state, reward, isDone, _) = obs {
@@ -686,7 +691,11 @@ open class BaseEnv: UnityEnvironmentListener {
                         action = action.reshaped(to: TensorShape(1, envSpec.actionSize))
                     }
                     _ = try? self.setActions(behaviorName: brainName, action: action, logLoss: logProbs)
-                    self.onNext?(model, reward, isDone)
+                    if isDone {
+                        self.onEndOfEpisode?(model, reward)
+                    }else {
+                        self.onNextState?(model, reward)
+                    }
                 }
                 
                 if !(props.envActions.keys.contains(brainName)) {

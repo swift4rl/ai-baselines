@@ -16,9 +16,9 @@ let actionCount: Int = 2
 /// has the shape observationSize - hiddenSize - actionCount, and the critic network has the same
 /// shape but with a single output node.
 
-let hiddenSize: Int = 64
+let hiddenSize: Int = 128
 /// The learning rate for both the actor and the critic.
-let learningRate: Float32 = 0.0075
+let learningRate: Float32 = 0.003
 /// The discount factor. This measures how much to "discount" the future rewards
 /// that the agent will receive. The discount factor must be from 0 to 1
 /// (inclusive). Discount factor of 0 means that the agent only considers the
@@ -31,22 +31,22 @@ let discount: Float32 = 0.99
 let epochs: Int = 3
 /// Parameter to clip the probability ratio. The ratio is clipped to [1-clipEpsilon, 1+clipEpsilon].
 /// Denoted epsilon in the PPO paper.
-let clipEpsilon: Float32 = 0.5
+let clipEpsilon: Float32 = 0.03
 
-let valueClipEpsilon: Float32 = 0.5
+let valueClipEpsilon: Float32 = 0.7
 
-let valueLossCoefficient: Float32 = 0.9
+let valueLossCoefficient: Float32 = 0.3
 /// Coefficient for the entropy bonus added to the objective. Denoted c_2 in the PPO paper.
-let entropyCoefficient: Float32 = 1e-4
+let entropyCoefficient: Float32 = 1e-3
 /// Maximum number of episodes to train the agent. The training is terminated
 /// early if maximum score is achieved consecutively 10 times.
 let maxEpisodes: Int = Int.max
 /// Maximum timestep per episode.
 let maxTimesteps: Int = Int.max
 /// The length of the trajectory segment. Denoted T in the PPO paper.
-let updateTimestep = 640
+let updateStep = 4
 
-let nMiniBatches = 10
+let batchSize = 128
 //
 //let updateTimestep = 10
 //
@@ -57,7 +57,6 @@ var episode: Int = 0
 var episodeReturn: Float = 0
 var episodeReturns: [Float] = []
 var maxEpisodeReturn: Float = -1
-var stepCount = 0
 var totalStepCount = 0
 
 
@@ -72,8 +71,7 @@ var agent: PPO = PPO(
     valueClipEpsilon: valueClipEpsilon,
     entropyCoefficient: entropyCoefficient,
     valueLossCoefficient: valueLossCoefficient,
-    nSteps: updateTimestep,
-    nMiniBatches: nMiniBatches
+    batchSize: batchSize
 )
 
 let appPath = FileManager.default.homeDirectoryForCurrentUser
@@ -88,8 +86,8 @@ print(appPath)
 let channel = EngineConfigurationChannel()
 
 try channel.setConfigurationParameters(
-    width: 300,
-    height: 300,
+    width: 600,
+    height: 600,
     qualityLevel: 5,
     timeScale: 20,
     targetFrameRate: -1,
@@ -99,18 +97,8 @@ try channel.setConfigurationParameters(
 let unityEnv = UnityContinousEnvironment(filename: appPath, model: agent, basePort: 5004, sideChannels: [channel])
 let start = DispatchTime.now()
 
-unityEnv.train(onNext: { model, reward, isDone in
+unityEnv.train(onNextState: { model, reward in
     episodeReturn += reward
-    if stepCount != 0 && stepCount % updateTimestep == 0 {
-        print("training... episode: \(episode) total episode: \(episodeReturns.count)")
-        agent.update()
-        stepCount = 0
-    }
-    if isDone {
-        episodeReturns.append(episodeReturn)
-        episodeReturn = 0
-        episode += 1
-    }
     if totalStepCount != 0 && totalStepCount % 5000 == 0 {
         let end = DispatchTime.now()
         let nanoTime = end.uptimeNanoseconds - start.uptimeNanoseconds
@@ -121,13 +109,19 @@ unityEnv.train(onNext: { model, reward, isDone in
         let maxIndex = episodeReturns.firstIndex(of: max)!
         print("Step: \(totalStepCount) Time Elapsed: \(timeInterval) seconds Mean Reward: \(avgEpisodeReturns) max: \(max), min: \(min), max index: \(maxIndex)")
         episodeReturns.removeAll()
-        
     }
     if totalStepCount != 0 && totalStepCount % 500000 == 0 {
         try? channel.setConfigurationParameters(timeScale: 1)
     }
     totalStepCount += 1
-    stepCount += 1
+}, onEndOfEpisode: { model, reward in
+    episodeReturn += reward
+    if episode != 0 && episode % updateStep == 0 {
+        agent.update(episodeCount: episode)
+    }
+    episodeReturns.append(episodeReturn)
+    episodeReturn = 0
+    episode += 1
 })
 
 //

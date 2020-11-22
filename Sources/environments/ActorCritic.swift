@@ -18,21 +18,15 @@ struct ActorNetwork: Layer {
     typealias Input = Tensor<Float32>
     typealias Output = Tensor<Float32>
 
-    var l1, l2: Dense<Float>
+    var l1: Dense<Float32>
 
-    init(l1: Dense<Float>, hiddenSize: Int, actionCount: Int) {
+    init(l1: Dense<Float32>, hiddenSize: Int, actionCount: Int) {
         self.l1 = l1
-        self.l2 = Dense<Float>(
-            inputSize: hiddenSize,
-            outputSize: actionCount,
-            activation: tanh,
-            weightInitializer: heNormal(seed: TensorFlowSeed(1,1))
-        )
     }
 
     @differentiable
     func callAsFunction(_ input: Input) -> Output {
-        return input.sequenced(through: l1, l2)
+        return l1.forward(input)
     }
 }
 
@@ -40,11 +34,11 @@ struct CriticNetwork: Layer {
     typealias Input = Tensor<Float32>
     typealias Output = Tensor<Float32>
 
-    var l1, l2: Dense<Float>
+    var l1, l2: Dense<Float32>
 
-    init(l1: Dense<Float>, hiddenSize: Int) {
+    init(l1: Dense<Float32>, hiddenSize: Int) {
         self.l1 = l1
-        l2 = Dense<Float>(
+        l2 = Dense<Float32>(
             inputSize: hiddenSize,
             outputSize: 1,
             activation: tanh,
@@ -64,11 +58,31 @@ struct ActorCritic: Layer {
     
     var actorNetwork: ActorNetwork
     var criticNetwork: CriticNetwork
-
+    var meanDense, logstdDense: Dense<Float32>
+    
     init(observationSize: Int, hiddenSize: Int, actionCount: Int) {
-        let l1 = Dense<Float>(
+        let l1 = Dense<Float32>(
             inputSize: observationSize,
             outputSize: hiddenSize,
+            activation: tanh,
+            weightInitializer: heUniform(seed: TensorFlowSeed(1,1))
+        )
+        let l11 = Dense<Float32>(
+            inputSize: observationSize,
+            outputSize: hiddenSize,
+            activation: tanh,
+            weightInitializer: heUniform(seed: TensorFlowSeed(1,1))
+        )
+        self.meanDense = Dense<Float32>(
+            inputSize: hiddenSize,
+            outputSize: 1,
+            activation: tanh,
+            weightInitializer: heUniform(seed: TensorFlowSeed(1,1))
+        )
+        
+        self.logstdDense = Dense<Float32>(
+            inputSize: hiddenSize,
+            outputSize: 1,
             activation: tanh,
             weightInitializer: heUniform(seed: TensorFlowSeed(1,1))
         )
@@ -80,7 +94,7 @@ struct ActorCritic: Layer {
         )
         
         self.criticNetwork = CriticNetwork(
-            l1: l1,
+            l1: l11,
             hiddenSize: hiddenSize
         )
     }
@@ -88,6 +102,10 @@ struct ActorCritic: Layer {
     @differentiable
     func callAsFunction(_ state: Input) -> Output {
         precondition(state.rank == 2, "The input must be 2-D ([batch size, state size]).")
-        return DiagGaussianProbabilityDistribution(flat: self.actorNetwork(state))
+        let logits = self.actorNetwork(state)
+        let mean = self.meanDense(logits)
+        let logstd = self.logstdDense(logits)
+        
+        return DiagGaussianProbabilityDistribution(mean: mean, logstd: logstd)
     }
 }

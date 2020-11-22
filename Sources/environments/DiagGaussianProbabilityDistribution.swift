@@ -29,20 +29,20 @@ public struct DiagGaussianProbabilityDistribution: DifferentiableDistribution, K
         
     public var mean: Tensor<Float32>
     public var logstd: Tensor<Float32>
-    public var std: Tensor<Float32>
+    @noDerivative public var std: Tensor<Float32>
 
     /**
     Probability distributions from multivariate Gaussian input
 
     :param flat: ([float]) the multivariate Gaussian input data
      */
+    
     @inlinable
     @differentiable
-    init(flat: Tensor<Float32>){
-        let x = flat.split(count: 2, alongAxis: flat.shape.count - 1)
-        self.mean = x[0]
-        self.logstd = x[1].clipped(min: -20, max: 2)
-        self.std = exp(x[1])
+    init(mean: Tensor<Float32>, logstd: Tensor<Float32>){
+        self.mean = mean
+        self.logstd = logstd.clipped(min: -20, max: 2)
+        self.std = exp(self.logstd)
     }
     
 
@@ -58,7 +58,7 @@ public struct DiagGaussianProbabilityDistribution: DifferentiableDistribution, K
     @noDerivative
     public func sample() -> Tensor<Float32> {
        // print("mean: \(self.mean) mode: \(tanh(self.mean))")
-//        let random = withoutDerivative(at: Tensor<Float32>(randomNormal: self.mean.shape))
+//        let random = Tensor<Float32>(randomNormal: self.mean.shape, mean: Tensor(0), standardDeviation: Tensor(1))
 //        return (self.mean + self.std * random).clipped(min: -3, max: 3) / 3
         return self.mean
     }
